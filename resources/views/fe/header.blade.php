@@ -88,7 +88,7 @@
                                         class="rounded-circle" 
                                         style="width: 55px; height: 55px; object-fit: cover; margin-right: 8px;">
                                 @else
-                                    <i class="fa fa-user-o" style="font-size: 20px; margin-right: 5px;"></i>
+                                    <img src="{{ asset('be/images/default-user.jpg') }}" alt="Default Profile">
                                 @endif
                             </a>
                             <ul class="dropdown-menu dropdown-menu-right" style="min-width: 200px;">

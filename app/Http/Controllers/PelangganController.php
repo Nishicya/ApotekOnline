@@ -157,7 +157,7 @@ class PelangganController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:pelanggans,email',
             'no_hp' => 'required|string|max:20',
-            'password' => 'required|min:6|confirmed',
+            'password' => 'required|min:6|max:12',
         ]);
 
         try {

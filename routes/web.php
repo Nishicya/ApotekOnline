@@ -19,6 +19,7 @@ use App\Http\Controllers\UsersController;
 // ==================== Public Routes ====================
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/shop', [App\Http\Controllers\ShopController::class, 'index'])->name('shop');
 
 // Auth User (Admin, Pemilik, Apoteker, Kasir, Karyawan)
 Route::get('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login');
