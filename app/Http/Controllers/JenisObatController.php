@@ -12,7 +12,7 @@ class JenisObatController extends Controller
     {
         $jenisObats = JenisObat::all();
         return view('be.jenis_obat.index', [
-            'title' => 'Medicine Type Management',
+            'title' => 'Kategori Obat Management',
             'jenisObats' => $jenisObats,
         ]);
     }

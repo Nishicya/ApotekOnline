@@ -22,11 +22,19 @@ class ShopController extends Controller
             $pelanggan = Pelanggan::find(session('loginId'));
         }
 
+        $obats = Obat::with('jenisObat')
+                ->where('stok', '>', 0)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
         return view('shop.index', [
-            'title' => 'Shop',
+            'title' => 'Medicine Shop',
             'pelanggan' => $pelanggan,
+            'obats' => $obats
         ]);
     }
+
+
 
     /**
      * Show the form for creating a new resource.

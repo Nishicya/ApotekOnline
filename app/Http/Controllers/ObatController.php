@@ -15,7 +15,7 @@ class ObatController extends Controller
         $jenisObats = JenisObat::all();
 
         return view('be.obat.index', [
-            'title' => 'Medicine Management',
+            'title' => 'Obat Management',
             'obats' => $obats,
             'jenisObats' => $jenisObats,
         ]);
@@ -54,7 +54,7 @@ class ObatController extends Controller
 
             Obat::create($validated);
 
-            return redirect()->route('obat.index')->with('success', 'Medicine added successfully!');
+            return redirect()->route('obat.manage')->with('success', 'Medicine added successfully!');
         } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Failed to add medicine. Error: '.$e->getMessage());
         }
@@ -121,7 +121,7 @@ class ObatController extends Controller
 
             $obat->update($validated);
 
-            return redirect()->route('obat.index')->with('success', 'Medicine updated successfully!');
+            return redirect()->route('obat.manage')->with('success', 'Medicine updated successfully!');
         } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Failed to update medicine. Error: '.$e->getMessage());
         }
@@ -139,7 +139,7 @@ class ObatController extends Controller
 
             $obat->delete();
 
-            return redirect()->route('obat.index')->with('success', 'Medicine deleted successfully!');
+            return redirect()->route('obat.manage')->with('success', 'Medicine deleted successfully!');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to delete medicine. Error: '.$e->getMessage());
         }

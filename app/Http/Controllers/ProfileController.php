@@ -23,6 +23,9 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $pelanggan = Auth::guard('pelanggan')->user();
+        if (!Auth::guard('pelanggan')->check()) {
+            return redirect()->route('signin')->with('error', 'Please login first');
+        }
 
         $validated = $request->validate([
             'nama_pelanggan' => 'required|string|max:255',
@@ -90,11 +93,11 @@ class ProfileController extends Controller
 
             $pelanggan->update($updateData);
 
-            return redirect()->route('profile')->with([
+            return redirect()->route('fe.profile')->with([
                 'swal' => [
                     'icon' => 'success',
                     'title' => 'Berhasil!',
-                    'text' => 'profile updated!',
+                    'text' => 'Profile updated successfully!',
                     'timer' => 1500
                 ]
             ]);

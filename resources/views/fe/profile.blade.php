@@ -38,7 +38,7 @@
                 @endif
                 
                 <div class="billing-details">
-                    <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
+                    <form method="POST" action="{{ route('fe.profile.update') }}" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         

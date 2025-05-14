@@ -75,8 +75,8 @@ Route::prefix('kasir')->middleware(['auth', CheckRoleUser::class . ':kasir'])->g
 
 // ==================== Profile Pelanggan ====================
 Route::middleware('auth:pelanggan')->group(function () {
-    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'index'])->name('profile');
-    Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'index'])->name('fe.profile');
+    Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('fe.profile.update');
 });
 
 // ==================== Profile User ====================
