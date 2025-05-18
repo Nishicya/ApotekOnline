@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use PDF;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,6 +19,8 @@ class PemilikController extends Controller
             'title' => 'Pemilik'
         ]);
     }
+
+    
 
     /**
      * Show the form for creating a new resource.

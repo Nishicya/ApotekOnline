@@ -14,9 +14,11 @@ return new class extends Migration
         Schema::create('metode_bayars', function (Blueprint $table) {
             $table->id();
             $table->string('metode_pembayaran');
-            $table->string('tempat_bayar', 50);
-            $table->string('no_rekening', 25);
+            $table->string('tempat_bayar', 50)->nullable();
+            $table->string('no_rekening', 25)->nullable();
             $table->text('url_logo')->nullable();
+            $table->string('payment_gateway')->nullable();
+            $table->text('config')->nullable();
             $table->timestamps();
         });
     }

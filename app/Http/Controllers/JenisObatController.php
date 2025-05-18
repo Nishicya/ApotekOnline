@@ -12,7 +12,7 @@ class JenisObatController extends Controller
     {
         $jenisObats = JenisObat::all();
         return view('be.jenis_obat.index', [
-            'title' => 'Kategori Obat Management',
+            'title' => 'Daftar Kategori Obat',
             'jenisObats' => $jenisObats,
         ]);
     }
@@ -45,6 +45,15 @@ class JenisObatController extends Controller
         $jenisObat = JenisObat::findOrFail($id);
         return view('be.jenis_obat.edit', [
             'title' => 'Edit Medicine Type',
+            'jenisObat' => $jenisObat,
+        ]);
+    }
+
+    public function show($id)
+    {
+        $jenisObat = JenisObat::findOrFail($id);
+        return view('be.jenis_obat.show', [
+            'title' => 'Detail Medicine Type',
             'jenisObat' => $jenisObat,
         ]);
     }

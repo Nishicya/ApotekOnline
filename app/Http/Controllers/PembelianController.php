@@ -3,218 +3,113 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pembelian;
+use App\Models\DetailPembelian;
 use App\Models\Distributor;
 use App\Models\Obat;
-use App\Models\DetailPembelian;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class PembelianController extends Controller
 {
     public function index()
     {
-        $pembelians = Pembelian::with(['distributor', 'detailPembelians.obat'])
-            ->latest()
-            ->get();
-        
-        return view('be.pembelian.index', [
-            'title' => 'Data Pembelian',
-            'pembelians' => $pembelians
-        ]);
+        $pembelians = Pembelian::with('distributor')->latest()->get();
+        return view('be.pembelian.index', compact('pembelians'));
     }
 
     public function create()
     {
-        return view('be.pembelian.create', [
-            'title' => 'Tambah Pembelian',
-            'distributors' => Distributor::orderBy('nama_distributor')->get(),
-            'obats' => Obat::orderBy('nama_obat')->get()
-        ]);
+        $distributors = Distributor::all();
+        $obats = Obat::all();
+        
+        $lastNota = Pembelian::orderBy('id', 'desc')->first();
+        $no_nota = 'NOTA-' . date('Ymd') . '-' . sprintf('%03d', ($lastNota ? $lastNota->id + 1 : 1));
+        
+        return view('be.pembelian.create', compact('distributors', 'obats', 'no_nota'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
+            'no_nota' => 'required|unique:pembelians',
             'tgl_pembelian' => 'required|date',
             'id_distributor' => 'required|exists:distributors,id',
-            'obat_id' => 'required|array|min:1',
-            'obat_id.*' => 'exists:obats,id',
-            'jumlah' => 'required|array|min:1',
-            'jumlah.*' => 'integer|min:1',
-            'harga_beli' => 'required|array|min:1',
+            'id_obat' => 'required|array',
+            'id_obat.*' => 'exists:obats,id',
+            'jumlah_beli' => 'required|array',
+            'jumlah_beli.*' => 'numeric|min:1',
+            'harga_beli' => 'required|array',
             'harga_beli.*' => 'numeric|min:0',
-            'total_bayar' => 'required|numeric|min:0'
         ]);
 
-        DB::beginTransaction();
-        try {
-            // Generate nota
-            $nota = 'PB-' . date('Ymd') . '-' . Str::upper(Str::random(4));
-            
-            // Create pembelian
-            $pembelian = Pembelian::create([
-                'no_nota' => $nota,
-                'tgl_pembelian' => $validated['tgl_pembelian'],
-                'total_bayar' => $validated['total_bayar'],
-                'id_distributor' => $validated['id_distributor'],
-                'id_user' => auth()->id() // Tambahkan user yang melakukan pembelian
+        $total_bayar = 0;
+        foreach ($request->obat_id as $key => $obat_id) {
+            $subtotal = $request->jumlah[$key] * $request->harga_beli[$key];
+            $total_bayar += $subtotal;
+        }
+
+        $pembelian = Pembelian::create([
+            'no_nota' => $request->no_nota,
+            'tgl_pembelian' => $request->tgl_pembelian,
+            'id_distributor' => $request->id_distributor,
+            'total_bayar' => $total_bayar,
+        ]);
+
+        foreach ($request->obat_id as $key => $obat_id) {
+            DetailPembelian::create([
+                'id_pembelian' => $pembelian->id,
+                'id_obat' => $obat_id,
+                'jumlah_beli' => $request->jumlah[$key],
+                'harga_beli' => $request->harga_beli[$key],
+                'subtotal' => $request->jumlah[$key] * $request->harga_beli[$key],
             ]);
 
-            // Create detail pembelian dan update stok
-            foreach ($validated['obat_id'] as $index => $obatId) {
-                $jumlah = $validated['jumlah'][$index];
-                $hargaBeli = $validated['harga_beli'][$index];
-                
-                // Cek stok cukup (jika ada validasi maksimal)
-                $obat = Obat::findOrFail($obatId);
-                
-                $pembelian->detailPembelians()->create([
-                    'id_obat' => $obatId,
-                    'jumlah' => $jumlah,
-                    'harga_beli' => $hargaBeli,
-                    'subtotal' => $jumlah * $hargaBeli
-                ]);
-
-                // Update stok obat
-                $obat->increment('stok', $jumlah);
-            }
-
-            DB::commit();
-            
-            return redirect()
-                ->route('pembelian.index')
-                ->with('success', 'Pembelian berhasil disimpan');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()
-                ->withInput()
-                ->with('error', 'Gagal menyimpan pembelian: ' . $e->getMessage());
+            $obat = Obat::find($obat_id);
+            $obat->stok += $request->jumlah[$key];
+            $obat->save();
         }
+
+        return redirect()->route('pembelian.manage')->with('success', 'Pembelian berhasil disimpan');
+    }
+
+   public function show($id)
+    {
+        $pembelian = Pembelian::with(['distributor', 'detailPembelians.obat'])->findOrFail($id);
+        if (!$pembelian->distributor) {
+            logger("Missing distributor for pembelian: " . $pembelian->id);
+        }
+        return view('be.pembelian.show', compact('pembelian'));
     }
     
-    public function show($id)
-    {
-        $pembelian = Pembelian::with(['distributor', 'detailPembelians.obat', 'user'])
-            ->findOrFail($id);
-        
-        return view('be.pembelian.show', [
-            'title' => 'Detail Pembelian',
-            'pembelian' => $pembelian
-        ]);
-    }
-
     public function edit($id)
     {
-        $pembelian = Pembelian::with(['detailPembelians', 'distributor'])
-            ->findOrFail($id);
-        
-        return view('be.pembelian.edit', [
-            'title' => 'Edit Pembelian',
-            'pembelian' => $pembelian,
-            'distributors' => Distributor::orderBy('nama_distributor')->get(),
-            'obats' => Obat::orderBy('nama_obat')->get()
-        ]);
+        $pembelian = Pembelian::with('detailPembelians')->findOrFail($id);
+        $distributors = Distributor::all();
+        $obats = Obat::all();
+        return view('be.pembelian.edit', compact('pembelian', 'distributors', 'obats'));
     }
 
     public function update(Request $request, $id)
     {
-        $validated = $request->validate([
-            'tgl_pembelian' => 'required|date',
-            'id_distributor' => 'required|exists:distributors,id',
-            'obat_id' => 'required|array|min:1',
-            'obat_id.*' => 'exists:obats,id',
-            'jumlah' => 'required|array|min:1',
-            'jumlah.*' => 'integer|min:1',
-            'harga_beli' => 'required|array|min:1',
-            'harga_beli.*' => 'numeric|min:0',
-            'total_bayar' => 'required|numeric|min:0'
-        ]);
-
-        DB::beginTransaction();
-        try {
-            $pembelian = Pembelian::findOrFail($id);
-            
-            // Revert stock changes from old details
-            foreach ($pembelian->detailPembelians as $detail) {
-                Obat::find($detail->id_obat)
-                    ->decrement('stok', $detail->jumlah);
-            }
-            
-            // Delete old details
-            $pembelian->detailPembelians()->delete();
-            
-            // Update pembelian
-            $pembelian->update([
-                'tgl_pembelian' => $validated['tgl_pembelian'],
-                'total_bayar' => $validated['total_bayar'],
-                'id_distributor' => $validated['id_distributor']
-            ]);
-            
-            // Create new details and update stock
-            foreach ($validated['obat_id'] as $index => $obatId) {
-                $jumlah = $validated['jumlah'][$index];
-                $hargaBeli = $validated['harga_beli'][$index];
-                
-                $pembelian->detailPembelians()->create([
-                    'id_obat' => $obatId,
-                    'jumlah' => $jumlah,
-                    'harga_beli' => $hargaBeli,
-                    'subtotal' => $jumlah * $hargaBeli
-                ]);
-
-                Obat::find($obatId)
-                    ->increment('stok', $jumlah);
-            }
-
-            DB::commit();
-            return redirect()
-                ->route('pembelian.index')
-                ->with('success', 'Pembelian berhasil diperbarui');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()
-                ->withInput()
-                ->with('error', 'Gagal memperbarui pembelian: ' . $e->getMessage());
-        }
+        // Implement update logic here
     }
 
     public function destroy($id)
     {
-        DB::beginTransaction();
-        try {
-            $pembelian = Pembelian::findOrFail($id);
-            
-            // Revert stock changes
-            foreach ($pembelian->detailPembelians as $detail) {
-                Obat::find($detail->id_obat)
-                    ->decrement('stok', $detail->jumlah);
-            }
-            
-            // Delete details first
-            $pembelian->detailPembelians()->delete();
-            $pembelian->delete();
-            
-            DB::commit();
-            return redirect()
-                ->route('pembelian.index')
-                ->with('success', 'Pembelian berhasil dihapus');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()
-                ->with('error', 'Gagal menghapus pembelian: ' . $e->getMessage());
+        $pembelian = Pembelian::findOrFail($id);
+        
+        // Kembalikan stok obat
+        foreach ($pembelian->detailPembelians as $detail) {
+            $obat = Obat::find($detail->id_obat);
+            $obat->stok -= $detail->jumlah_beli;
+            $obat->save();
         }
-    }
-
-    public function printNota($id)
-    {
-        $pembelian = Pembelian::with(['distributor', 'detailPembelians.obat', 'user'])
-            ->findOrFail($id);
-            
-        return view('be.pembelian.nota', [
-            'title' => 'Nota Pembelian',
-            'pembelian' => $pembelian
-        ]);
+        
+        // Hapus detail pembelian
+        $pembelian->detailPembelians()->delete();
+        
+        // Hapus pembelian
+        $pembelian->delete();
+        
+        return redirect()->route('pembelian.manage')->with('success', 'Pembelian berhasil dihapus');
     }
 }

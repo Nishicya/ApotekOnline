@@ -15,7 +15,7 @@ class ObatController extends Controller
         $jenisObats = JenisObat::all();
 
         return view('be.obat.index', [
-            'title' => 'Obat Management',
+            'title' => 'Daftar Obat',
             'obats' => $obats,
             'jenisObats' => $jenisObats,
         ]);

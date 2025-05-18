@@ -11,11 +11,15 @@
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">{{ $title }}</h4>
+                            
+                            @if(auth()->user()->role !== 'pemilik')
                             <div class="d-flex justify-content-start mb-3">
                                 <a href="{{ route('obat.create') }}" class="btn btn-primary rounded-pill">
                                     <i class="fas fa-plus-circle me-2"></i>Tambah Obat
                                 </a>
                             </div>
+                            @endif
+                            
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
@@ -46,19 +50,25 @@
                                             <td>{{ $data->stok }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <a href="{{ route('obat.show', $data->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
-                                                        <i class="fas fa-eye me-1"></i> Detail
-                                                    </a>
-                                                    <a href="{{ route('obat.edit', $data->id) }}" class="btn btn-light btn-sm rounded-pill me-2">
-                                                        <i class="fas fa-edit me-1"></i> Edit
-                                                    </a>
-                                                    <form action="{{ route('obat.destroy', $data->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-danger btn-sm rounded-pill" onclick="return confirm('Hapus obat ini?')">
-                                                            <i class="fas fa-trash-alt me-1"></i> Hapus
-                                                        </button>
-                                                    </form>
+                                                    @if(auth()->user()->role == 'pemilik' || auth()->user()->role == 'kasir')
+                                                        <a href="{{ route('daftarobat.show', $data->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
+                                                            <i class="fas fa-eye me-1"></i> Detail
+                                                        </a>
+                                                    @else
+                                                        <a href="{{ route('obat.show', $data->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
+                                                            <i class="fas fa-eye me-1"></i> Detail
+                                                        </a>
+                                                        <a href="{{ route('obat.edit', $data->id) }}" class="btn btn-light btn-sm rounded-pill me-2">
+                                                            <i class="fas fa-edit me-1"></i> Edit
+                                                        </a>
+                                                        <form action="{{ route('obat.destroy', $data->id) }}" method="POST" class="d-inline">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-danger btn-sm rounded-pill" onclick="return confirm('Hapus obat ini?')">
+                                                                <i class="fas fa-trash-alt me-1"></i> Hapus
+                                                            </button>
+                                                        </form>
+                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>

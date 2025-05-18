@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Obat;
+use App\Models\JenisObat;
+use App\Models\Keranjang;
 use App\Models\Pelanggan;
 use App\Models\User;
 
@@ -20,9 +23,17 @@ class HomeController extends Controller
             $pelanggan = Pelanggan::find(session('loginId'));
         }
 
+        $jenisObats = JenisObat::take(3)->get();
+        $obats = Obat::with('jenisObat')
+            ->where('stok', '>', 0)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return view('home.index', [
             'title' => 'Home',
             'pelanggan' => $pelanggan,
+            'obats' => $obats,
+            'jenisObats' => $jenisObats,
         ]);
     }
 

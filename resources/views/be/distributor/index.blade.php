@@ -11,11 +11,15 @@
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">{{ $title }}</h4>
+                            
+                            @if(auth()->user()->role !== 'pemilik')
                             <div class="d-flex justify-content-start mb-3">
                                 <a href="{{ route('distributor.create') }}" class="btn btn-primary rounded-pill">
                                     <i class="fas fa-plus-circle me-2"></i>Tambah Distributor
                                 </a>
                             </div>
+                            @endif
+                            
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
@@ -36,6 +40,13 @@
                                             <td>{{ Str::limit($data->alamat, 30) }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
+                                                    @if(auth()->user()->role == 'pemilik')
+                                                    <a href="{{ route('daftardistributor.show', $data->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
+                                                        <i class="fas fa-eye me-1"></i> Detail
+                                                    </a>
+                                                    @endif
+                                                    
+                                                    @if(auth()->user()->role !== 'pemilik')
                                                     <a href="{{ route('distributor.show', $data->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
                                                         <i class="fas fa-eye me-1"></i> Detail
                                                     </a>
@@ -49,6 +60,7 @@
                                                             <i class="fas fa-trash-alt me-1"></i> Hapus
                                                         </button>
                                                     </form>
+                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>

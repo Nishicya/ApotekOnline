@@ -13,11 +13,13 @@
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">{{ $title }}</h4>
+                            @if(auth()->user()->role !== 'pemilik')
                             <div class="d-flex justify-content-start mb-3">
                                 <a href="{{ route('pelanggan.create') }}" class="btn btn-primary">
                                     <i class="fa fa-plus-circle me-2"></i> Add New Pelanggan
                                 </a>
                             </div>
+                            @endif
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
@@ -71,20 +73,22 @@
                                                     <img src="{{ asset('storage/' . $data->url_ktp) }}" width="50">
                                                 @endif
                                                 </td>
+                                                @if(auth()->user()->role !== 'pemilik')
                                                 <td>
-                                                    <div class="btn-group" role="group">
-                                                        <a href="{{ route('pelanggan.edit', $data->id) }}" class="btn btn-light btn-sm">
-                                                            <i class="fa fa-pencil-square-o"></i> Edit
+                                                   <div class="btn-group" role="group">
+                                                        <a href="{{ route('pelanggan.edit', $data->id) }}" class="btn btn-light btn-sm rounded-pill me-2">
+                                                            <i class="fas fa-edit me-1"></i> Edit
                                                         </a>
-                                                        <form action="{{ route('pelanggan.destroy', $data->id) }}" method="POST" id="deleteForm{{ $data->id }}" style="display: inline;">
+                                                        <form action="{{ route('pelanggan.destroy', $data->id) }}" method="POST" class="d-inline">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="button" class="btn btn-primary btn-fw" onclick="deleteConfirm({{ $data->id }})">
-                                                                <i class="fas fa-trash-alt me-1"></i>Delete
+                                                            <button type="submit" class="btn btn-danger btn-sm rounded-pill" onclick="return confirm('Hapus pelanggan ini?')">
+                                                                <i class="fas fa-trash-alt me-1"></i> Hapus
                                                             </button>
                                                         </form>
                                                     </div>
                                                 </td>
+                                                @endif
                                             </tr>
                                         @empty
                                             <tr>

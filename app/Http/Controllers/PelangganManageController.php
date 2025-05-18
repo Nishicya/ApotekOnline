@@ -14,7 +14,7 @@ class PelangganManageController extends Controller
     {
         $pelanggans = Pelanggan::all();
         return view('be.pelanggan.index', [
-            'title' => 'Pelanggan Management',
+            'title' => 'Daftar Pelanggan',
             'pelanggans' => $pelanggans,
         ]);
     }

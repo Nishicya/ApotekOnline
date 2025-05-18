@@ -80,7 +80,7 @@ class ProfileController extends Controller
                     Storage::disk('public')->delete($pelanggan->foto);
                 }
                 $fotoPath = $request->file('foto')->store('pelanggan/fotos', 'public');
-                $updateData['foto'] = $fotoPath; // ✅ ganti dari $data ke $updateData
+                $updateData['foto'] = $fotoPath;
             }
             
             if ($request->hasFile('url_ktp')) {
@@ -88,7 +88,7 @@ class ProfileController extends Controller
                     Storage::disk('public')->delete($pelanggan->url_ktp);
                 }
                 $ktpPath = $request->file('url_ktp')->store('pelanggan/ktp', 'public');
-                $updateData['url_ktp'] = $ktpPath; // ✅ ganti dari $data ke $updateData
+                $updateData['url_ktp'] = $ktpPath;
             }            
 
             $pelanggan->update($updateData);

@@ -21,6 +21,29 @@
                     <a href="{{ url("/$routePrefix") }}" class="nav-link"><i class="typcn typcn-chart-area-outline"></i> Dashboard</a>
                 </li>
 
+                @if (str_contains(Auth::user()->role, 'pemilik'))
+                <li class="nav-item dropdown {{ request()->Is('obat*', 'pelanggan*', 'distributor*', 'pengiriman*') ? 'active show' : '' }}">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="typcn typcn-tags"></i> Daftar 
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="{{ route('daftarobat.index') }}" class="dropdown-item {{ request()->Is('obat*') ? 'active' : '' }}">Obat</a>
+                        <a href="{{ route('daftarpelanggan.index') }}" class="dropdown-item {{ request()->Is('pelanggan*') ? 'active' : '' }}">Pelanggan</a>
+                        <a href="{{ route('daftardistributor.index') }}" class="dropdown-item {{ request()->Is('distributor*') ? 'active' : '' }}">Distributor</a>
+                        <a href="{{ route('daftarpengiriman.index') }}" class="dropdown-item {{ request()->Is('pengiriman*') ? 'active' : '' }}">Pengiriman</a>
+                    </div>
+                </li>
+                <li class="nav-item dropdown {{ request()->Is('penjualan*', 'pembelian*') ? 'active show' : '' }}">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="typcn typcn-chart-bar-outline"></i> Laporan 
+                    </a>
+                    <div class="dropdown-menu">
+                        <a href="{{ route('laporanpenjualan.index') }}" class="dropdown-item {{ request()->Is('penjualan*') ? 'active' : '' }}">Penjualan</a>
+                        <a href="{{ route('laporanpembelian.index') }}" class="dropdown-item {{ request()->Is('pembelian*') ? 'active' : '' }}">Pembelian</a>
+                    </div>
+                </li>
+                @endif
+
                 @if (str_contains(Auth::user()->role, 'admin'))
                 <!-- User Management Dropdown -->
                 <li class="nav-item dropdown {{ request()->Is('user*', 'pelanggan*') ? 'active show' : '' }}">
@@ -72,24 +95,29 @@
                 <li class="nav-item {{ request()->is('penjualan') ? 'active show' : '' }}">
                     <a href="{{ route('penjualan.manage') }}" class="nav-link"><i class="typcn typcn-chart-bar-outline"></i> Penjualan</a>
                 </li>
+                <li class="nav-item {{ request()->Is('obat*') ? 'active' : '' }}">
+                    <a href="{{ route('daftarobat.index') }}" class="nav-link"><i class="typcn typcn-tags"></i>Daftar Obat</a>
+                </li>
                 @endif
 
                 @if (str_contains(Auth::user()->role, 'apoteker'))
-                <li class="nav-item dropdown {{ request()->Is('obat*', 'pembelian*', 'jenis-obat*') ? 'active show' : '' }}">
-                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
-                        <i class="typcn typcn-tags"></i> Pharmacy
-                    </a>
-                    <div class="dropdown-menu">
-                        <a href="{{ route('obat.manage') }}" class="dropdown-item {{ request()->Is('obat*') ? 'active' : '' }}">Obat</a>
-                        <a href="{{ route('pembelian.manage') }}" class="dropdown-item {{ request()->Is('pembelian*') ? 'active' : '' }}">Pembelian</a>
-                        <a href="{{ route('jenis-obat.manage') }}" class="dropdown-item {{ request()->Is('jenis-obat*') ? 'active' : '' }}">Kategori Obat</a>
-                    </div>
+                <li class="nav-item {{ request()->Is('obat*') ? 'active' : '' }}">
+                    <a href="{{ route('obat.manage') }}" class="nav-link"><i class="typcn typcn-tags"></i>Obat</a>
+                </li>
+                <li class="nav-item {{ request()->Is('pembelian*') ? 'active' : '' }}">
+                    <a href="{{ route('pembelian.manage') }}" class="nav-link"><i class="typcn typcn-tags"></i>Pembelian</a>
+                </li>
+                <li class="nav-item {{ request()->Is('jenis-obat*') ? 'active' : '' }}">
+                    <a href="{{ route('jenis-obat.manage') }}" class="nav-link"><i class="typcn typcn-tags"></i>Kategori Obat</a>
                 </li>
                 @endif
 
                 @if (str_contains(Auth::user()->role, 'karyawan'))
                 <li class="nav-item {{ request()->Is('pengiriman') ? 'active show' : '' }}">
                     <a href="{{ route('pengiriman.manage') }}" class="nav-link"><i class="typcn typcn-chart-bar-outline"></i>Pengiriman</a>
+                </li>
+                <li class="nav-item {{ request()->Is('jenis-pengiriman') ? 'active show' : '' }}">
+                    <a href="{{ route('jenis-pengiriman.manage') }}" class="nav-link"><i class="typcn typcn-chart-bar-outline"></i>Jenis Pengiriman</a>
                 </li>
                 @endif
             </ul>
@@ -102,7 +130,7 @@
                 @if($user && $user->foto)
                 <img src="{{ asset('storage/'.$user->foto) }}" alt="Profile Photo">
                 @else
-                <img src="{{ asset('be/images/default-user.jpg') }}" alt="Default Profile">
+                <img src="{{ asset('images/default-user.jpg') }}" alt="">
                 @endif
             </a>
         <div class="dropdown-menu">
@@ -114,7 +142,7 @@
                     @if($user && $user->foto)
                     <img src="{{ asset('storage/'.$user->foto) }}" alt="Profile Photo">
                     @else
-                    <img src="{{ asset('be/images/default-user.jpg') }}" alt="Default Profile">
+                    <img src="{{ asset('images/default-user.jpg') }}" alt="">
                     @endif
                 </div>
                 <h6>{{ $user->name }}</h6>

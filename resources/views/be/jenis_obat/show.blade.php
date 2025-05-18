@@ -13,7 +13,7 @@
                             <h4 class="card-title">Medicine Type Detail</h4>
                             <div class="row mb-3">
                                 <div class="col-md-6">
-                                    <a href="{{ route('jenis-obat.index') }}" class="btn btn-secondary rounded-pill">
+                                    <a href="{{ route('jenis-obat.manage') }}" class="btn btn-secondary rounded-pill">
                                         <i class="fas fa-arrow-left me-2"></i>Back to List
                                     </a>
                                 </div>

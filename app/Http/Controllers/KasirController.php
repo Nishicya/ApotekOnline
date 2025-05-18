@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Obat;
+use App\Models\Pelanggan;
+use App\Models\Penjualan;
 
 class KasirController extends Controller
 {
@@ -12,8 +15,16 @@ class KasirController extends Controller
      */
     public function index()
     {
+        $penjualan = Penjualan::with('pelanggan')->latest()->take(5)->get();
+        $obats = Obat::with('jenisObat')->latest()->take(5)->get();
+        $pelanggans = Pelanggan::latest()->take(5)->get();
+
+
         return view('be.kasir.index', [
-            'title' => 'Kasir'
+            'title' => 'Kasir',
+            'penjualan' => $penjualan,
+            'obat' => $obats,
+            'Pelanggan' => $pelanggans,
         ]);
     }
 

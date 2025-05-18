@@ -6,7 +6,7 @@
             <!-- LOGO -->
             <div class="col-md-3">
                 <div class="header-logo">
-                    <a href="#" class="logo">
+                    <a href="/home" class="logo">
                         <img src="{{ asset('fe/img/logo.png') }}" alt="">
                     </a>
                 </div>
@@ -18,9 +18,11 @@
                 <div class="header-search">
                     <form>
                         <select class="input-select">
-                            <option value="0">All Categories</option>
-                            <option value="1">Category 01</option>
-                            <option value="1">Category 02</option>
+                            <option value="0" disabled selected>All Categories</option>
+                            <option value="1">Bebas</option>
+                            <option value="1">Terbatas</option>
+                            <option value="1">Keras</option>
+                            <option value="1" >Herbal</option>
                         </select>
                         <input class="input" placeholder="Search here">
                         <button class="search-btn">Search</button>
@@ -32,45 +34,63 @@
             <!-- ACCOUNT -->
             <div class="col-md-3 clearfix">
                 <div class="header-ctn">
-                    <!-- Cart -->
+                   <!-- Cart -->
                     <div class="dropdown">
                         <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="true">
                             <i class="fa fa-shopping-cart"></i>
-                            <span>Your Cart</span>
-                            <div class="qty">3</div>
+                            <span class="keranjang-count qty">{{ auth('pelanggan')->user() ? auth('pelanggan')->user()->keranjangs->count() : 0 }}</span>
                         </a>
                         <div class="cart-dropdown">
                             <div class="cart-list">
-                                <div class="product-widget">
-                                    <div class="product-img">
-                                        <img src="{{ asset('fe/img/product01.png') }}" alt="">
+                                @if(auth('pelanggan')->user())
+                                    @php
+                                        $cartItems = auth('pelanggan')->user()->keranjangs()
+                                            ->with('obat')
+                                            ->latest()
+                                            ->take(5)
+                                            ->get();
+                                    @endphp
+                                    
+                                    @forelse($cartItems as $item)
+                                        <div class="product-widget">
+                                            <div class="product-img">
+                                                <img src="{{ asset('storage/' . $item->obat->foto1) }}" alt="{{ $item->obat->nama_obat }}">
+                                            </div>
+                                            <div class="product-body">
+                                                <h3 class="product-name">
+                                                    <a href="{{ route('product.detail', $item->obat->id) }}">{{ $item->obat->nama_obat }}</a>
+                                                </h3>
+                                                <h4 class="product-price">
+                                                    <span class="qty">{{ $item->jumlah_order }}x</span>
+                                                    Rp{{ number_format($item->harga, 0, ',', '.') }}
+                                                </h4>
+                                            </div>
+                                            <button class="delete" onclick="removeFromCart({{ $item->id }})">
+                                                <i class="fa fa-close"></i>
+                                            </button>
+                                        </div>
+                                    @empty
+                                        <div class="empty-cart-message">
+                                            <p>Keranjang belanja kosong</p>
+                                        </div>
+                                    @endforelse
+                                @else
+                                    <div class="empty-cart-message">
+                                        <p>Silakan login untuk melihat keranjang</p>
                                     </div>
-                                    <div class="product-body">
-                                        <h3 class="product-name"><a href="#">product name goes here</a></h3>
-                                        <h4 class="product-price"><span class="qty">1x</span>$980.00</h4>
-                                    </div>
-                                    <button class="delete"><i class="fa fa-close"></i></button>
+                                @endif
+                            </div>
+                            
+                            @if(auth('pelanggan')->user())
+                                <div class="cart-summary">
+                                    <small>{{ $cartItems->count() }} Item(s) selected</small>
+                                    <h5>SUBTOTAL: Rp{{ number_format(auth('pelanggan')->user()->keranjangs->sum('subtotal'), 0, ',', '.') }}</h5>
                                 </div>
-
-                                <div class="product-widget">
-                                    <div class="product-img">
-                                        <img src="{{ asset('fe/img/product02.png') }}" alt="">
-                                    </div>
-                                    <div class="product-body">
-                                        <h3 class="product-name"><a href="#">product name goes here</a></h3>
-                                        <h4 class="product-price"><span class="qty">3x</span>$980.00</h4>
-                                    </div>
-                                    <button class="delete"><i class="fa fa-close"></i></button>
+                                <div class="cart-btns">
+                                    <a href="{{ route('keranjang') }}">View Cart</a>
+                                    <a href="{{ route('checkout') }}">Checkout <i class="fa fa-arrow-circle-right"></i></a>
                                 </div>
-                            </div>
-                            <div class="cart-summary">
-                                <small>3 Item(s) selected</small>
-                                <h5>SUBTOTAL: $2940.00</h5>
-                            </div>
-                            <div class="cart-btns">
-                                <a href="#">View Cart</a>
-                                <a href="#">Checkout  <i class="fa fa-arrow-circle-right"></i></a>
-                            </div>
+                            @endif
                         </div>
                     </div>
                     <!-- /Cart -->
@@ -135,3 +155,109 @@
     </div>
     <!-- container -->
 </div>
+@push('scripts')
+<script>
+    function removeFromCart(cartId) {
+        Swal.fire({
+            title: 'Hapus dari keranjang?',
+            text: "Produk akan dihapus dari keranjang belanja",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, hapus!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/keranjang/remove/' + cartId,
+                    method: 'DELETE',
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            Swal.fire(
+                                'Dihapus!',
+                                'Produk telah dihapus dari keranjang.',
+                                'success'
+                            ).then(() => {
+                                location.reload();
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    }
+</script>
+@endpush
+
+@push('styles')
+<style>
+    .cart-dropdown {
+        width: 350px;
+        padding: 15px;
+    }
+    .product-widget {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+    .product-img {
+        width: 60px;
+        height: 60px;
+        margin-right: 15px;
+    }
+    .product-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .product-body {
+        flex: 1;
+    }
+    .product-name {
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+    .product-price {
+        font-size: 14px;
+        color: #D10024;
+    }
+    .delete {
+        background: none;
+        border: none;
+        color: #D10024;
+        cursor: pointer;
+    }
+    .empty-cart-message {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    .cart-summary {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+    .cart-btns {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-between;
+    }
+    .cart-btns a {
+        padding: 8px 15px;
+        border-radius: 3px;
+    }
+    .cart-btns a:first-child {
+        background: #f1f1f1;
+        color: #333;
+    }
+    .cart-btns a:last-child {
+        background: #D10024;
+        color: white;
+    }
+</style>
+@endpush

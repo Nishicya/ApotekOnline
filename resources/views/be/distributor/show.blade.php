@@ -39,6 +39,13 @@
             </div>
 
             <div class="d-flex justify-content-between mt-4">
+                @if(auth()->user()->role == 'pemilik')
+                <a href="{{ route('daftardistributor.index') }}" class="btn btn-secondary rounded-pill">
+                    <i class="fas fa-arrow-left me-2"></i> Kembali ke Daftar
+                </a>
+                @endif
+                
+                @if(auth()->user()->role !== 'pemilik')
                 <a href="{{ route('distributor.index') }}" class="btn btn-secondary rounded-pill">
                     <i class="fas fa-arrow-left me-2"></i> Kembali ke Daftar
                 </a>
@@ -54,6 +61,7 @@
                         </button>
                     </form>
                 </div>
+                @endif
             </div>
         </div>
     </div>

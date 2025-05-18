@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Obat extends Model
 {
@@ -31,5 +32,18 @@ class Obat extends Model
     {
         return $this->hasMany(DetailPenjualan::class, 'id_obat');
     }
-}
 
+    public function getTotalSoldAttribute()
+    {
+        return $this->detailPenjualans()->sum('jumlah_beli');
+    }
+
+    public function scopePopular($query, $limit = 3)
+    {
+        return $query->withCount(['detailPenjualans as total_sold' => function($query) {
+                $query->select(DB::raw('COALESCE(SUM(jumlah_beli), 0)'));
+            }])
+            ->orderBy('total_sold', 'desc')
+            ->take($limit);
+    }
+}

@@ -18,6 +18,8 @@ class Pembelian extends Model
         'id_distributor',
     ];
 
+    protected $dates = ['tgl_pembelian'];
+
     public function distributor()
     {
         return $this->belongsTo(Distributor::class, 'id_distributor');

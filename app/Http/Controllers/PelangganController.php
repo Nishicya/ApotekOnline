@@ -225,7 +225,7 @@ class PelangganController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('signin')->with('Success', 'signout berhasil!');
+        return redirect()->route('home')->with('Success', 'signout berhasil!');
     }
 
     /**

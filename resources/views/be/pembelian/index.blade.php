@@ -10,54 +10,55 @@
                 <div class="col-lg-12 grid-margin stretch-card">
                     <div class="card">
                         <div class="card-body">
-                            <h4 class="card-title">{{ $title }}</h4>
+                            <h4 class="card-title">Daftar Pembelian</h4>
+                            @if(auth()->user()->role !== 'pemilik')
                             <div class="d-flex justify-content-start mb-3">
-                                <a href="{{ route('pembelian.create') }}" class="btn btn-primary">
-                                    <i class="fa fa-plus-circle me-2"></i>Tambah Pembelian
+                                <a href="{{ route('pembelian.create') }}" class="btn btn-primary rounded-pill">
+                                    <i class="fas fa-plus-circle me-2"></i>Tambah Penjualan
                                 </a>
                             </div>
+                            @endif
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
                                         <tr>
-                                            <th>No</th>
                                             <th>No. Nota</th>
                                             <th>Tanggal</th>
                                             <th>Distributor</th>
                                             <th>Total</th>
-                                            <th>Detail</th>
                                             <th>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($pembelians as $index => $pembelian)
+                                        @foreach($pembelians as $pembelian)
                                         <tr>
-                                            <td>{{ $index + 1 }}</td>
                                             <td>{{ $pembelian->no_nota }}</td>
-                                            <td>{{ $pembelian->tgl_pembelian->format('d/m/Y') }}</td>
-                                            <td>{{ $pembelian->distributor->nama }}</td>
-                                            <td>Rp{{ number_format($pembelian->total_bayar, 0, ',', '.') }}</td>
+                                            <td>{{ date('d/m/Y', strtotime($pembelian->tgl_pembelian)) }}</td>
+                                            <td>{{ $pembelian->distributor->nama_distributor }}</td>
+                                            <td>Rp {{ number_format($pembelian->total_bayar, 0, ',', '.') }}</td>
                                             <td>
-                                                <button class="btn btn-info btn-sm view-detail" 
-                                                        data-id="{{ $pembelian->id }}">
-                                                    <i class="fa fa-eye"></i> Lihat
-                                                </button>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group">
-                                                    <a href="{{ route('pembelian.edit', $pembelian->id) }}" 
-                                                       class="btn btn-warning btn-sm">
-                                                        <i class="fa fa-edit"></i>
+                                                <div class="btn-group" role="group">
+                                                    @if(auth()->user()->role == 'pemilik')
+                                                    <a href="{{ route('laporanpembelian.show', $pembelian->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
+                                                        <i class="fas fa-eye me-1"></i> Detail
                                                     </a>
-                                                    <form action="{{ route('pembelian.destroy', $pembelian->id) }}" 
-                                                          method="POST" class="d-inline">
+                                                    @endif
+                                                    
+                                                    @if(auth()->user()->role !== 'pemilik')
+                                                    <a href="{{ route('pembelian.show', $pembelian->id) }}" class="btn btn-info btn-sm rounded-pill me-2">
+                                                        <i class="fas fa-eye me-1"></i> Detail
+                                                    </a>
+                                                    <a href="{{ route('pembelian.edit', $pembelian->id) }}" class="btn btn-light btn-sm rounded-pill me-2">
+                                                        <i class="fas fa-edit me-1"></i> Edit
+                                                    </a>
+                                                    <form action="{{ route('pembelian.destroy', $pembelian->id) }}" method="POST" class="d-inline">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit" class="btn btn-danger btn-sm" 
-                                                                onclick="return confirm('Hapus data pembelian ini?')">
-                                                            <i class="fa fa-trash"></i>
+                                                        <button type="submit" class="btn btn-danger btn-sm rounded-pill" onclick="return confirm('Hapus pembelian ini?')">
+                                                            <i class="fas fa-trash-alt me-1"></i> Hapus
                                                         </button>
                                                     </form>
+                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>
@@ -68,56 +69,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal for detail view -->
-<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="detailModalLabel">Detail Pembelian</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>No. Nota:</strong> <span id="detail-nota"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Tanggal:</strong> <span id="detail-tanggal"></span>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Distributor:</strong> <span id="detail-distributor"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Total:</strong> <span id="detail-total"></span>
-                    </div>
-                </div>
-                
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>Nama Obat</th>
-                            <th>Jumlah</th>
-                            <th>Harga Beli</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detail-obat">
-                        <!-- Detail obat akan diisi oleh JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>

@@ -3,47 +3,23 @@
     <div class="container">
         <!-- row -->
         <div class="row">
+            @foreach($jenisObats as $jenisObat)
             <!-- shop -->
             <div class="col-md-4 col-xs-6">
                 <div class="shop">
                     <div class="shop-img">
-                        <img src="{{ asset('fe/img/shop01.png') }}" alt="">
+                        <img src="{{ asset('storage/' . $jenisObat->image_url) }}" alt="{{ $jenisObat->jenis }}">
                     </div>
                     <div class="shop-body">
-                        <h3>Laptop<br>Collection</h3>
-                        <a href="#" class="cta-btn">Shop now <i class="fa fa-arrow-circle-right"></i></a>
+                        <h3>{{ $jenisObat->jenis }}</h3>
+                        <a href="{{ route('shop', ['category' => $jenisObat->jenis]) }}" class="cta-btn">
+                            Beli Sekarang <i class="fa fa-arrow-circle-right"></i>
+                        </a>
                     </div>
                 </div>
             </div>
             <!-- /shop -->
-
-            <!-- shop -->
-            <div class="col-md-4 col-xs-6">
-                <div class="shop">
-                    <div class="shop-img">
-                        <img src="{{ asset('fe/img/shop03.png') }}" alt="">
-                    </div>
-                    <div class="shop-body">
-                        <h3>Accessories<br>Collection</h3>
-                        <a href="#" class="cta-btn">Shop now <i class="fa fa-arrow-circle-right"></i></a>
-                    </div>
-                </div>
-            </div>
-            <!-- /shop -->
-
-            <!-- shop -->
-            <div class="col-md-4 col-xs-6">
-                <div class="shop">
-                    <div class="shop-img">
-                        <img src="{{ asset('fe/img/shop02.png') }}" alt="">
-                    </div>
-                    <div class="shop-body">
-                        <h3>Cameras<br>Collection</h3>
-                        <a href="#" class="cta-btn">Shop now <i class="fa fa-arrow-circle-right"></i></a>
-                    </div>
-                </div>
-            </div>
-            <!-- /shop -->
+            @endforeach
         </div>
         <!-- /row -->
     </div>

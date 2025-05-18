@@ -13,7 +13,7 @@ class JenisPengirimanController extends Controller
         $jenisPengiriman = JenisPengiriman::all();
         
         return view('be.jenis-pengiriman.index', [
-            'title' => 'Manajemen Jenis Pengiriman',
+            'title' => 'Manajemen Jenis Pengiriman', 
             'jenisPengiriman' => $jenisPengiriman
         ]);
     }

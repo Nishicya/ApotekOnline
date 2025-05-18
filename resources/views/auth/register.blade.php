@@ -59,14 +59,6 @@
                     <input type="password" class="form-control form-control-lg" id="exampleInputPassword1" name="password" placeholder="Password" required>
                     <span class="text-danger">@error('password') {{ $message }} @enderror</span>
                   </div>
-                  <div class="mb-4">
-                    <div class="form-check">
-                      <label class="form-check-label text-muted">
-                        <input type="checkbox" class="form-check-input">
-                        I agree to all Terms & Conditions
-                      </label>
-                    </div>
-                  </div>
                   <div class="mt-3">
                     <button type="submit" class="btn btn-block btn-primary btn-lg font-weight-medium auth-form-btn">Sign Up</button>
                   </div>

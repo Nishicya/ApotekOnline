@@ -55,12 +55,20 @@
                             </div>
                             
                             <div class="d-flex justify-content-start">
+                                @if(auth()->user()->role == 'pemilik')
+                                <a href="{{ route('daftarobat.index') }}" class="btn btn-light rounded-pill me-2">
+                                    <i class="fas fa-arrow-left me-1"></i> Kembali
+                                </a>
+                                @endif
+                                
+                                @if(auth()->user()->role !== 'pemilik')
                                 <a href="{{ route('obat.manage') }}" class="btn btn-light rounded-pill me-2">
                                     <i class="fas fa-arrow-left me-1"></i> Kembali
                                 </a>
                                 <a href="{{ route('obat.edit', $obat->id) }}" class="btn btn-primary rounded-pill me-2">
                                     <i class="fas fa-edit me-1"></i> Edit
                                 </a>
+                                @endif
                             </div>
                         </div>
                     </div>

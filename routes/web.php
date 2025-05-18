@@ -11,15 +11,36 @@ use App\Http\Controllers\PengirimanController;
 use App\Http\Controllers\JenisPengirimanController;
 use App\Http\Controllers\ProfileUserController;
 use App\Http\Controllers\PelangganManageController;
+use App\Http\Controllers\DistributorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DetailPembelianController;
 use App\Http\Controllers\DetailPengirimanController;
 use App\Http\Controllers\UsersController;
+use App\Http\Controllers\DashboardPemilikController;
+use App\Http\Controllers\ShopController;
+use App\Http\Controllers\KeranjangController;
 
 // ==================== Public Routes ====================
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/about', [App\Http\Controllers\AboutController::class, 'index'])->name('about');
+Route::get('/contactUs', [App\Http\Controllers\ContactController::class, 'index'])->name('contact');
 Route::get('/shop', [App\Http\Controllers\ShopController::class, 'index'])->name('shop');
+Route::get('/shop/filter', [App\Http\Controllers\ShopController::class, 'filter'])->name('shop.filter');
+Route::get('/product/{id}', [App\Http\Controllers\ShopController::class, 'show'])->name('product.detail');
+
+// ==================== Midtrans Routes ====================
+Route::post('/payment/callback', [MidtransController::class, 'handleCallback'])->name('payment.callback');
+Route::post('/checkout/process', [CheckoutController::class, 'processCheckout'])->name('checkout.process');
+Route::get('/payment/finish', [CheckoutController::class, 'paymentFinish'])->name('payment.finish');
+
+// Routes Keranjang
+Route::post('/keranjang/tambah', [KeranjangController::class, 'add'])->name('keranjang.add');
+Route::get('/keranjang', [App\Http\Controllers\KeranjangController::class, 'index'])->name('keranjang');
+Route::get('/keranjang/checkout', [App\Http\Controllers\KeranjangController::class, 'checkout'])->name('checkout');
+Route::post('/keranjang/checkout/process', [App\Http\Controllers\KeranjangController::class, 'processCheckout'])->name('checkout.process');
+Route::delete('/keranjang/remove/{id}', [App\Http\Controllers\KeranjangController::class, 'remove'])->name('keranjang.remove');
+Route::post('/keranjang/update/{id}', [App\Http\Controllers\KeranjangController::class, 'update'])->name('keranjang.update');
 
 // Auth User (Admin, Pemilik, Apoteker, Kasir, Karyawan)
 Route::get('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login');
@@ -58,7 +79,25 @@ Route::prefix('admin')->middleware(['auth', CheckRoleUser::class . ':admin'])->g
 });
 
 Route::prefix('pemilik')->middleware(['auth', CheckRoleUser::class . ':pemilik'])->group(function () {
-    Route::get('/', [App\Http\Controllers\PemilikController::class, 'index'])->name('pemilik.dashboard');
+    Route::get('/', [DashboardPemilikController::class, 'index'])->name('pemilik.dashboard');
+    Route::get('/dashboard', [DashboardPemilikController::class, 'index'])->name('pemilik.dashboard');
+    Route::get('/dashboard/export-pdf', [DashboardPemilikController::class, 'exportPdf'])->name('pemilik.dashboard.exportPdf');
+    Route::get('/dashboard/export-excel', [DashboardPemilikController::class, 'exportExcel'])->name('pemilik.dashboard.exportExcel');
+
+    // Index
+    Route::get('/obat', [ObatController::class, 'index'])->name('daftarobat.index');
+    Route::get('/penjualan', [PenjualanController::class, 'index'])->name('laporanpenjualan.index');
+    Route::get('/pembelian', [PembelianController::class, 'index'])->name('laporanpembelian.index');
+    Route::get('/pelanggan', [PelangganManageController::class, 'index'])->name('daftarpelanggan.index');
+    Route::get('/distributor', [DistributorController::class, 'index'])->name('daftardistributor.index');
+    Route::get('/pengiriman', [PengirimanController::class, 'index'])->name('daftarpengiriman.index');
+
+    // Detail
+    Route::get('/detail-obat', [ObatController::class, 'show'])->name('daftarobat.show');
+    Route::get('/detail-penjualan', [PenjualanController::class, 'show'])->name('laporanpenjualan.show');
+    Route::get('/detail-pembelian', [PembelianController::class, 'show'])->name('laporanpembelian.show');
+    Route::get('/detail-distributor', [DistributorController::class, 'show'])->name('daftardistributor.show');
+    Route::get('/detail-pengiriman', [PengirimanController::class, 'show'])->name('daftarpengiriman.show');
 });
 
 Route::prefix('apoteker')->middleware(['auth', CheckRoleUser::class . ':apoteker'])->group(function () {
@@ -71,6 +110,8 @@ Route::prefix('karyawan')->middleware(['auth', CheckRoleUser::class . ':karyawan
 
 Route::prefix('kasir')->middleware(['auth', CheckRoleUser::class . ':kasir'])->group(function () {
     Route::get('/', [App\Http\Controllers\KasirController::class, 'index'])->name('kasir.dashboard');
+    Route::get('/dashboard', [DashboardKasirController::class, 'index'])->name('kasir.dashboard');
+    Route::get('/obat', [ObatController::class, 'index'])->name('daftarobat.index');
 });
 
 // ==================== Profile Pelanggan ====================
@@ -99,7 +140,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':admin'])->group(function () 
     ]);
 });
 
-Route::middleware(['auth', CheckRoleUser::class . ':admin'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':admin,pemilik'])->group(function () {
     Route::resource('pelanggan', PelangganManageController::class)->names([
         'index' => 'pelanggan.manage',
         'create' => 'pelanggan.create',
@@ -111,7 +152,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':admin'])->group(function () 
 });
 
 // Obat Management 
-Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin,pemilik'])->group(function () {
     Route::resource('obat', ObatController::class)->names([
         'index' => 'obat.manage',
         'create' => 'obat.create',
@@ -123,7 +164,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin'])->group(fun
 });
 
 // Penjualan Management
-Route::middleware(['auth', CheckRoleUser::class . ':kasir,admin'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':kasir,admin,pemilik'])->group(function () {
     Route::resource('penjualan', PenjualanController::class)->names([
         'index' => 'penjualan.manage',
         'create' => 'penjualan.create',
@@ -139,7 +180,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':kasir,admin'])->group(functi
 });
 
 // Distributor Management
-Route::middleware(['auth', CheckRoleUser::class . ':admin'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':admin,pemilik'])->group(function () {
     Route::resource('distributor', App\Http\Controllers\DistributorController::class)->names([
         'index' => 'distributor.index',
         'create' => 'distributor.create',
@@ -155,7 +196,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':admin'])->group(function () 
 });
 
 // Pembelian & Jenis Obat Management
-Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin,pemilik'])->group(function () {
     Route::resource('pembelian', PembelianController::class)->names([
         'index' => 'pembelian.manage',
         'create' => 'pembelian.create',
@@ -180,7 +221,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin'])->group(fun
 });
 
 // Pengiriman Management
-Route::middleware(['auth', CheckRoleUser::class . ':karyawan,admin'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':karyawan,admin,pemilik'])->group(function () {
     Route::resource('pengiriman', PengirimanController::class)->names([
         'index' => 'pengiriman.manage',
         'create' => 'pengiriman.create',
@@ -205,7 +246,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':karyawan,admin'])->group(fun
 }); 
 
 // Metode Bayar
-Route::middleware(['auth', CheckRoleUser::class . ':admin, kasir'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':admin,kasir'])->group(function () {
     Route::resource('metode-bayar', App\Http\Controllers\MetodeBayarController::class);
 });
 

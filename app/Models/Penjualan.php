@@ -53,16 +53,28 @@ class Penjualan extends Model
     }
 
     // === ENUM HELPER OPTIONAL ===
-    public static function getStatusOrderOptions()
+   public static function getStatusOrderOptions()
     {
         return [
             'Menunggu Konfirmasi',
             'Diproses',
             'Menunggu Kurir',
-            'Dibatalkan Pembeli',
-            'Dibatalkan Penjual',
-            'Bermasalah',
-            'Selesai'
+            'Dikirim',
+            'Selesai',
+            'Dibatalkan'
         ];
+    }
+
+    public function getStatusColorAttribute()
+    {
+        switch($this->status_order) {
+            case 'Menunggu Konfirmasi': return 'warning';
+            case 'Diproses': return 'info';
+            case 'Menunggu Kurir': return 'primary';
+            case 'Dikirim': return 'success';
+            case 'Selesai': return 'dark';
+            case 'Dibatalkan': return 'danger';
+            default: return 'secondary';
+        }
     }
 }
