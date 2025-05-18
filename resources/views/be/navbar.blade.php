@@ -27,7 +27,7 @@
                         <i class="typcn typcn-tags"></i> Daftar 
                     </a>
                     <div class="dropdown-menu">
-                        <a href="{{ route('daftarobat.index') }}" class="dropdown-item {{ request()->Is('obat*') ? 'active' : '' }}">Obat</a>
+                        <a href="{{ route('daftarobatpemilik.index') }}" class="dropdown-item {{ request()->Is('obat*') ? 'active' : '' }}">Obat</a>
                         <a href="{{ route('daftarpelanggan.index') }}" class="dropdown-item {{ request()->Is('pelanggan*') ? 'active' : '' }}">Pelanggan</a>
                         <a href="{{ route('daftardistributor.index') }}" class="dropdown-item {{ request()->Is('distributor*') ? 'active' : '' }}">Distributor</a>
                         <a href="{{ route('daftarpengiriman.index') }}" class="dropdown-item {{ request()->Is('pengiriman*') ? 'active' : '' }}">Pengiriman</a>
@@ -113,11 +113,19 @@
                 @endif
 
                 @if (str_contains(Auth::user()->role, 'karyawan'))
+                <li class="nav-item {{ request()->is('penjualan') ? 'active show' : '' }}">
+                    <a href="{{ route('penjualan.manage') }}" class="nav-link">
+                        <i class="typcn typcn-chart-bar-outline"></i> Penjualan
+                    </a>
+                </li>
                 <li class="nav-item {{ request()->Is('pengiriman') ? 'active show' : '' }}">
                     <a href="{{ route('pengiriman.manage') }}" class="nav-link"><i class="typcn typcn-chart-bar-outline"></i>Pengiriman</a>
                 </li>
                 <li class="nav-item {{ request()->Is('jenis-pengiriman') ? 'active show' : '' }}">
                     <a href="{{ route('jenis-pengiriman.manage') }}" class="nav-link"><i class="typcn typcn-chart-bar-outline"></i>Jenis Pengiriman</a>
+                </li>
+                <li class="nav-item {{ request()->is('karyawan/daftarkurir*') ? 'active show' : '' }}">
+                    <a href="{{ route('karyawan.daftarkurir.index') }}" class="nav-link"><i class="typcn typcn-user"></i>Daftar Kurir</a>
                 </li>
                 @endif
             </ul>

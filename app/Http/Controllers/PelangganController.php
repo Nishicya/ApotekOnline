@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB; 
 use App\Models\Pelanggan;
 use App\Models\User;
+use App\Models\Pengiriman;
+use App\Models\Penjualan;
 
 class PelangganController extends Controller
 {
@@ -226,6 +228,72 @@ class PelangganController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('home')->with('Success', 'signout berhasil!');
+    }
+
+    // Menampilkan daftar pesanan pelanggan
+    public function pesanan()
+    {
+        $pelanggan = Auth::guard('pelanggan')->user();
+        $penjualans = Penjualan::with(['pengiriman'])
+            ->where('id_pelanggan', $pelanggan->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return view('pesanan.index', [
+            'title' => 'My Order',
+            'penjualans' => $penjualans,
+        ]);
+    }
+
+    // Konfirmasi pesanan (upload bukti foto, ubah status)
+    public function konfirmasiPesanan(Request $request, Pengiriman $pengiriman)
+    {
+        $request->validate([
+            'bukti_foto' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        // Pastikan hanya pelanggan terkait yang bisa konfirmasi
+        $user = Auth::guard('pelanggan')->user();
+        if (!$pengiriman->penjualan || $pengiriman->penjualan->id_pelanggan != $user->id) {
+            return back()->with('error', 'Akses ditolak.');
+        }
+
+        // Upload bukti foto
+        if ($request->hasFile('bukti_foto')) {
+            // Hapus bukti lama jika ada
+            if ($pengiriman->bukti_foto && \Storage::exists('public/'.$pengiriman->bukti_foto)) {
+                \Storage::delete('public/'.$pengiriman->bukti_foto);
+            }
+            $file = $request->file('bukti_foto');
+            $filename = 'bukti_'.time().'_'.$file->getClientOriginalName();
+            $path = $file->storeAs('public/bukti_pesanan', $filename);
+            $pengiriman->bukti_foto = 'bukti_pesanan/'.$filename;
+        }
+
+        // Update status pengiriman & penjualan
+        $pengiriman->status_kirim = 'Tiba Di Tujuan';
+        $pengiriman->save();
+
+        $penjualan = $pengiriman->penjualan;
+        $penjualan->status_order = 'Selesai';
+        $penjualan->save();
+
+        return back()->with('success', 'Pesanan berhasil dikonfirmasi!');
+    }
+
+    // Tampilkan detail pesanan
+    public function showPesanan($id)
+    {
+        $pelanggan = Auth::guard('pelanggan')->user();
+        $penjualan = \App\Models\Penjualan::with(['pengiriman', 'detailPenjualans.obat'])
+            ->where('id', $id)
+            ->where('id_pelanggan', $pelanggan->id)
+            ->firstOrFail();
+
+        return view('pesanan.show', [
+            'title' => 'Detail Pesanan',
+            'penjualan' => $penjualan,
+        ]);
     }
 
     /**

@@ -10,29 +10,47 @@ use App\Models\MetodeBayar;
 use App\Models\JenisPengiriman;
 use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
+use App\Models\Pengiriman;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Midtrans\Config as MidtransConfig;
+use Midtrans\Snap;
 
 class KeranjangController extends Controller
 {
+    protected $midtransMethod;
+
+    public function __construct()
+    {
+        $this->midtransMethod = MetodeBayar::where('payment_gateway', 'midtrans')->first();
+        
+        if ($this->midtransMethod) {
+            MidtransConfig::$serverKey = config('midtrans.serverKey');
+            MidtransConfig::$isProduction = config('midtrans.isProduction');
+            MidtransConfig::$isSanitized = true;
+            MidtransConfig::$is3ds = true;
+        }
+    }
+
     public function index()
     {
         if (auth('pelanggan')->check()) {
-            // Jika pelanggan login, ambil dari database
-            $cartItem = Keranjang::where('id_pelanggan', auth('pelanggan')->id())->with('obat')->get();
-            $total = $cartItem->sum(function($item) {
-                return $item->harga * $item->jumlah_order;
-            });
+            $cartItems = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
+                            ->with('obat')
+                            ->get();
+            $total = $cartItems->sum('subtotal');
         } else {
-            // Jika guest, ambil dari session
             $cart = session()->get('cart', []);
             $total = 0;
             
-            $cartItem = collect($cart)->map(function($item) {
+            $cartItems = collect($cart)->map(function($item) {
                 return (object)[
                     'id' => $item['id'],
                     'id_obat' => $item['id'],
                     'jumlah_order' => $item['quantity'],
                     'harga' => $item['price'],
+                    'subtotal' => $item['price'] * $item['quantity'],
                     'obat' => (object)[
                         'id' => $item['id'],
                         'nama_obat' => $item['name'],
@@ -43,7 +61,7 @@ class KeranjangController extends Controller
             });
         }
         
-        return view('keranjang.index', compact('cartItem', 'total'));
+        return view('keranjang.index', compact('cartItems', 'total'));
     }
 
     public function add(Request $request)
@@ -51,7 +69,7 @@ class KeranjangController extends Controller
         if (!auth('pelanggan')->check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Anda harus login terlebih dahulu untuk menambahkan produk ke keranjang',
+                'message' => 'Anda harus login terlebih dahulu',
                 'login_required' => true
             ], 401);
         }
@@ -63,44 +81,31 @@ class KeranjangController extends Controller
 
         $product = Obat::findOrFail($request->id_obat);
 
-        // Cek stok tersedia
         if ($product->stok < $request->quantity) {
             return response()->json([
                 'success' => false,
-                'message' => 'Stok tidak mencukupi. Stok tersedia: ' . $product->stok,
-                'login_required' => false
+                'message' => 'Stok tidak mencukupi. Stok tersedia: ' . $product->stok
             ], 400);
         }
 
-        // Check if item already exists in cart
-        $cartItem = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
-                            ->where('id_obat', $product->id)
-                            ->first();
-
-        if ($cartItem) {
-            // Update menggunakan harga_jual
-            $cartItem->jumlah_order += $request->quantity;
-            $cartItem->harga = $product->harga_jual; // Tambahkan ini
-            $cartItem->subtotal = $cartItem->jumlah_order * $product->harga_jual; // Diubah
-            $cartItem->save();
-        } else {
-            // Create menggunakan harga_jual
-            $cartItem = Keranjang::create([
+        $cartItem = Keranjang::updateOrCreate(
+            [
                 'id_pelanggan' => auth('pelanggan')->id(),
-                'id_obat' => $product->id,
-                'jumlah_order' => $request->quantity,
-                'harga' => $product->harga_jual, // Diubah
-                'subtotal' => $request->quantity * $product->harga_jual // Diubah
-            ]);
-        }
+                'id_obat' => $product->id
+            ],
+            [
+                'jumlah_order' => DB::raw('jumlah_order + ' . $request->quantity),
+                'harga' => $product->harga_jual,
+                'subtotal' => DB::raw('(jumlah_order + ' . $request->quantity . ') * ' . $product->harga_jual)
+            ]
+        );
 
         $cartCount = Keranjang::where('id_pelanggan', auth('pelanggan')->id())->sum('jumlah_order');
 
         return response()->json([
             'success' => true,
-            'message' => 'Produk berhasil ditambahkan ke keranjang',
-            'cart_count' => $cartCount,
-            'login_required' => false
+            'message' => 'Produk berhasil ditambahkan',
+            'cart_count' => $cartCount
         ]);
     }
 
@@ -113,20 +118,18 @@ class KeranjangController extends Controller
         $product = Obat::findOrFail($id);
 
         if ($product->stok < $request->quantity) {
-            return back()->with('error', 'Stok tidak mencukupi. Stok tersedia: ' . $product->stok);
+            return back()->with('error', 'Stok tidak mencukupi');
         }
 
-        if (Auth::check()) {
-            $cartItem = Keranjang::where('id_pelanggan', Auth::id())
+        if (auth('pelanggan')->check()) {
+            $cartItem = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
                             ->where('id_obat', $id)
-                            ->first();
+                            ->firstOrFail();
 
-            if ($cartItem) {
-                $cartItem->jumlah_order = $request->quantity;
-                $cartItem->harga = $product->harga_jual;
-                $cartItem->subtotal = $cartItem->jumlah_order * $product->harga_jual;
-                $cartItem->save();
-            }
+            $cartItem->update([
+                'jumlah_order' => $request->quantity,
+                'subtotal' => $request->quantity * $cartItem->harga
+            ]);
         } else {
             $cart = session()->get('cart', []);
             if(isset($cart[$id])) {
@@ -135,106 +138,10 @@ class KeranjangController extends Controller
             }
         }
 
-        return back()->with('success', 'Keranjang berhasil diperbarui');
+        return back()->with('success', 'Keranjang diperbarui');
     }
 
-    public function checkout(Request $request)
-    {
-        $pelanggan = null;
-        if (session('loginId')) {
-            $pelanggan = Pelanggan::find(session('loginId'));
-            $keranjangItems = Keranjang::with('obat')
-                ->where('id_pelanggan', session('loginId'))
-                ->get();
-        } else {
-            return redirect()->route('signin')->with('error', 'Silakan login terlebih dahulu');
-        }
-
-        // Get selected items from request
-        $selectedItems = $request->input('selected_items', []);
-
-        // Filter only selected items if any
-        if (!empty($selectedItems)) {
-            $keranjangItems = $keranjangItems->whereIn('id', $selectedItems);
-        }
-
-        if ($keranjangItems->isEmpty()) {
-            return redirect()->route('keranjang')->with('error', 'Tidak ada item yang dipilih untuk checkout');
-        }
-
-        $metodeBayar = MetodeBayar::all();
-        $jenisPengiriman = JenisPengiriman::all();
-
-        return view('checkout.index', [
-            'title' => 'Checkout',
-            'pelanggan' => $pelanggan,
-            'keranjangItems' => $keranjangItems,
-            'metodeBayar' => $metodeBayar,
-            'jenisPengiriman' => $jenisPengiriman,
-            'selectedItems' => $selectedItems
-        ]);
-    }
-
-    public function processCheckout(Request $request)
-    {
-        $request->validate([
-            'id_metode_bayar' => 'required|exists:metode_bayars,id',
-            'id_jenis_kirim' => 'required|exists:jenis_pengirimans,id',
-            'alamat_pengiriman' => 'required|string|max:255',
-            'catatan' => 'nullable|string|max:500',
-            'selected_items' => 'required|array',
-            'selected_items.*' => 'exists:keranjangs,id'
-        ]);
-
-        $pelangganId = session('loginId');
-        $selectedItems = $request->input('selected_items', []);
-        
-        $keranjangItems = Keranjang::with('obat')
-            ->where('id_pelanggan', $pelangganId) 
-            ->whereIn('id', $selectedItems)
-            ->get();
-
-        if ($keranjangItems->isEmpty()) {
-            return redirect()->route('keranjang')->with('error', 'Tidak ada item yang dipilih untuk checkout');
-        }
-
-        // Calculate totals
-        $subtotal = $keranjangItems->sum('subtotal');
-        $jenisPengiriman = JenisPengiriman::find($request->id_jenis_kirim);
-        $ongkosKirim = $jenisPengiriman->harga;
-        $biayaApp = 0;
-        $totalBayar = $subtotal + $ongkosKirim + $biayaApp;
-
-        // Create penjualan record
-        $penjualan = Penjualan::create([
-            'id_pelanggan' => $pelangganId,
-            'id_metode_bayar' => $request->id_metode_bayar,
-            'id_jenis_kirim' => $request->id_jenis_kirim,
-            'tgl_penjualan' => now(),
-            'ongkos_kirim' => $ongkosKirim,
-            'biaya_app' => $biayaApp,
-            'total_bayar' => $totalBayar,
-            'status_order' => 'Menunggu Konfirmasi',
-            'keterangan_status' => 'Pesanan baru dibuat',
-            'alamat_pengiriman' => $request->alamat_pengiriman,
-            'catatan' => $request->catatan,
-        ]);
-
-        // Create detail penjualan records
-        foreach ($keranjangItems as $item) {
-            DetailPenjualan::create([
-                'id_penjualan' => $penjualan->id,
-                'id_obat' => $item->id_obat,
-                'jumlah_beli' => $item->jumlah_beli,
-                'harga_beli' => $item->obat->harga_jual,
-                'subtotal' => $item->subtotal,
-            ]);
-        }
-
-        return redirect()->route('keranjang')->with('success', 'Pesanan berhasil dibuat dengan nomor #' . $penjualan->id);
-    }
-
-    public function remove($id)
+    public function remove(Request $request, $id)
     {
         if (auth('pelanggan')->check()) {
             Keranjang::where('id_pelanggan', auth('pelanggan')->id())
@@ -248,14 +155,178 @@ class KeranjangController extends Controller
             }
         }
 
-        // Return JSON response untuk AJAX request
         if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Produk berhasil dihapus dari keranjang'
-            ]);
+            return response()->json(['success' => true]);
         }
 
-        return back()->with('success', 'Produk berhasil dihapus dari keranjang');
+        return back()->with('success', 'Produk dihapus');
     }
+
+    public function checkout(Request $request)
+    {
+        if (!auth('pelanggan')->check()) {
+            return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu');
+        }
+
+        $selectedItems = $request->input('selected_items', []);
+        $cartItems = Keranjang::with('obat')
+                    ->where('id_pelanggan', auth('pelanggan')->id())
+                    ->when(!empty($selectedItems), function($query) use ($selectedItems) {
+                        return $query->whereIn('id', $selectedItems);
+                    })
+                    ->get();
+
+        if ($cartItems->isEmpty()) {
+            return redirect()->route('keranjang')->with('error', 'Keranjang kosong');
+        }
+
+        return view('checkout.index', [
+            'pelanggan' => auth('pelanggan')->user(),
+            'keranjangItems' => $cartItems,
+            'metodeBayar' => MetodeBayar::all(),
+            'jenisPengiriman' => JenisPengiriman::all(),
+            'selectedItems' => $selectedItems
+        ]);
+    }
+
+    public function processCheckout(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $validated = $request->validate([
+                'id_metode_bayar' => 'required|exists:metode_bayars,id',
+                'id_jenis_kirim' => 'required|exists:jenis_pengirimans,id',
+                'alamat_pengiriman' => 'required|string|max:255',
+                'catatan' => 'nullable|string|max:500',
+                'selected_items' => 'required|array|min:1',
+                'selected_items.*' => 'exists:keranjangs,id,id_pelanggan,'.auth('pelanggan')->id()
+            ]);
+
+            $cartItems = Keranjang::with('obat')
+                        ->where('id_pelanggan', auth('pelanggan')->id())
+                        ->whereIn('id', $validated['selected_items'])
+                        ->get();
+
+            if ($cartItems->isEmpty()) {
+                throw new \Exception('Tidak ada item yang dipilih');
+            }
+
+            // Calculate totals
+            $biayaApp = 2000;
+            $subtotal = $cartItems->sum('subtotal');
+            $shipping = JenisPengiriman::findOrFail($validated['id_jenis_kirim'])->harga;
+            $total = $subtotal + $shipping + $biayaApp;
+
+            // Create order
+            $order = Penjualan::create([
+                'id_pelanggan' => auth('pelanggan')->id(),
+                'id_metode_bayar' => $validated['id_metode_bayar'],
+                'id_jenis_kirim' => $validated['id_jenis_kirim'],
+                'tgl_penjualan' => now(),
+                'ongkos_kirim' => $shipping,
+                'biaya_app' => $biayaApp,
+                'total_bayar' => $total,
+                'status_order' => 'Menunggu Konfirmasi',
+                'alamat_pengiriman' => $validated['alamat_pengiriman'],
+                'catatan' => $validated['catatan']
+            ]);
+
+            // Order Items
+            foreach ($cartItems as $item) {
+                DetailPenjualan::create([
+                    'id_penjualan' => $order->id,
+                    'id_obat' => $item->id_obat,
+                    'jumlah_beli' => $item->jumlah_order,
+                    'harga_beli' => $item->harga,
+                    'subtotal' => $item->subtotal
+                ]);
+
+                $item->obat->decrement('stok', $item->jumlah_order);
+                $item->delete();
+            }
+
+            // Midtrans
+            if ($this->isMidtransPayment($validated['id_metode_bayar'])) {
+                $payment = $this->processMidtransPayment($order, $cartItems, $shipping, $biayaApp);
+                DB::commit();
+                return response()->json($payment);
+            }
+
+            DB::commit();
+            return response()->json([
+                'redirect' => route('orders.show', $order->id)
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Checkout error: '.$e->getMessage());
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    protected function isMidtransPayment($methodId)
+    {
+        return $this->midtransMethod && $this->midtransMethod->id == $methodId;
+    }
+
+    protected function processMidtransPayment($order, $items, $shippingCost, $biayaApp)
+    {
+        $customer = auth('pelanggan')->user();
+
+        $params = [
+            'transaction_details' => [
+                'id_penjualan' => 'ORDER-'.$order->id.'-'.time(),
+                'gross_amount' => $order->total_bayar
+            ],
+            'customer_details' => [
+                'first_name' => $customer->nama,
+                'email' => $customer->email,
+                'phone' => $customer->no_telp
+            ],
+            'item_details' => []
+        ];
+
+        foreach ($items as $item) {
+            $params['item_details'][] = [
+                'id' => $item->id_obat,
+                'price' => $item->harga,
+                'quantity' => $item->jumlah_order,
+                'name' => $item->obat->nama_obat
+            ];
+        }
+
+        if ($shippingCost > 0) {
+            $params['item_details'][] = [
+                'id' => 'SHIPPING',
+                'price' => $shippingCost,
+                'quantity' => 1,
+                'name' => 'Ongkos Kirim'
+            ];
+        }
+
+        // Tambah Biaya Aplikasi
+        $params['item_details'][] = [
+            'id' => 'APPFEE',
+            'price' => $biayaApp,
+            'quantity' => 1,
+            'name' => 'Biaya Aplikasi'
+        ];
+
+        try {
+            $snapToken = Snap::getSnapToken($params);
+            $order->update(['id_penjualan' => $params['transaction_details']['id_penjualan']]);
+
+            return [
+                'snapToken' => $snapToken,
+                'id_penjualan' => $params['transaction_details']['id_penjualan']
+            ];
+        } catch (\Exception $e) {
+            Log::error('Midtrans error: '.$e->getMessage());
+            throw new \Exception('Gagal memproses pembayaran');
+        }
+    }
+
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class KaryawanController extends Controller
 {
@@ -63,5 +64,30 @@ class KaryawanController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    public function daftarKurir()
+    {
+        $kurirs = User::where('role', 'kurir')->get();
+        return view('be.karyawan.daftarkurir.index', [
+            'title' => 'Daftar Kurir',
+            'kurirs' => $kurirs
+        ]);
+    }
+
+    public function showKurir($id)
+    {
+        $kurir = User::where('role', 'kurir')->findOrFail($id);
+        return view('be.karyawan.daftarkurir.show', [
+            'title' => 'Detail Kurir',
+            'kurir' => $kurir
+        ]);
+    }
+
+    public function destroyKurir($id)
+    {
+        $kurir = User::where('role', 'kurir')->findOrFail($id);
+        $kurir->delete();
+        return redirect()->route('karyawan.daftarkurir.index')->with('success', 'Kurir berhasil dihapus.');
     }
 }

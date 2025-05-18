@@ -114,7 +114,7 @@
                             <ul class="dropdown-menu dropdown-menu-right" style="min-width: 200px;">
                                 <li><a class="dropdown-item"><strong class="ml-2">{{ $pelanggan->nama_pelanggan ?? 'Guest' }} - My Profile</strong></a></li>
                                 <li><a class="dropdown-item" href="{{ route('fe.profile') }}"><i class="fa fa-id-card mr-2"></i> Your Profile</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fa fa-shopping-bag mr-2"></i> Your Orders</a></li>
+                                <li><a class="dropdown-item" href="{{ route('fe.pesanan') }}"><i class="fa fa-shopping-bag mr-2"></i> My Order</a></li>
                                 <li><a class="dropdown-item" href="#"><i class="fa fa-cog mr-2"></i> Account Settings</a></li>
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">

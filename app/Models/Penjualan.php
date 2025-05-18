@@ -10,6 +10,7 @@ class Penjualan extends Model
 {
     use HasFactory;
 
+    // Pastikan nama tabel sesuai dengan database
     protected $table = 'penjualans';
 
     protected $fillable = [
@@ -53,7 +54,7 @@ class Penjualan extends Model
     }
 
     // === ENUM HELPER OPTIONAL ===
-   public static function getStatusOrderOptions()
+    public static function getStatusOrderOptions()
     {
         return [
             'Menunggu Konfirmasi',

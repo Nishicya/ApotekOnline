@@ -30,7 +30,8 @@ class CheckRoleUser
             'apoteker' => 'apoteker.dashboard',
             'pemilik' => 'pemilik.dashboard',
             'karyawan' => 'karyawan.dashboard',
-            'kasir' => 'kasir.dashboard'
+            'kasir' => 'kasir.dashboard',
+            'kurir' => 'kurir.dashboard',
         ];
 
         $redirectRoute = $dashboardRoutes[$user->role] ?? 'home';

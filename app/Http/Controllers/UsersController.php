@@ -34,7 +34,7 @@ class UsersController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6|max:12',
-            'role' => 'required|in:admin,pemilik,karyawan,apoteker,kasir',
+            'role' => 'required|in:admin,pemilik,karyawan,apoteker,kasir,kurir',
             'no_hp' => 'required',
         ]);
 
@@ -69,7 +69,7 @@ class UsersController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email,'. $user->id,
             'no_hp' => 'required', 
-            'role' => 'required|in:admin,pemilik,karyawan,apoteker,kasir',
+            'role' => 'required|in:admin,pemilik,karyawan,apoteker,kasir,kurir',
         ]);
 
         $data = [

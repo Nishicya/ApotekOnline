@@ -12,11 +12,12 @@ class MetodeBayar extends Model
     protected $table = 'metode_bayars';
 
     protected $fillable = [
-        'metode_pembayaran',
-        'tempat_bayar',
-        'no_rekening',
-        'url_logo',
-    ];
+        'metode_pembayaran', 
+        'tempat_bayar', 
+        'no_rekening', 
+        'url_logo', 
+        'payment_gateway'
+    ];  
 
     public function penjualans()
     {

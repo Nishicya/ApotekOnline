@@ -19,7 +19,7 @@
             <div class="col-md-8">
                 <form id="checkout-form" action="{{ route('checkout') }}" method="GET">
                     @csrf
-                    @if($cartItem->count() > 0)
+                    @if($cartItems->count() > 0)
                         <table class="table table-hover">
                             <thead>
                                 <tr>
@@ -34,7 +34,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($cartItem as $item)
+                                @foreach($cartItems as $item)
                                 <tr>
                                     <td>
                                         <input type="checkbox" name="selected_items[]" 
@@ -46,8 +46,9 @@
                                     </td>
                                     <td>Rp{{ number_format($item->obat->harga_jual, 0, ',', '.') }}</td>
                                     <td>
-                                        <input type="number" class="form-control quantity-input" 
-                                            value="{{ $item->jumlah_beli }}" min="1" max="{{ $item->obat->stok + $item->jumlah_beli }}"
+                                        <input type="number" class="quantity-input" 
+                                            value="{{ $item->jumlah_beli ?? $item->jumlah_order ?? 1 }}" min="1"
+                                            max="{{ $item->obat->stok + ($item->jumlah_beli ?? $item->jumlah_order ?? 0) }}"
                                             data-id="{{ $item->id }}">
                                     </td>
                                     <td>Rp{{ number_format($item->subtotal, 0, ',', '.') }}</td>
@@ -71,11 +72,14 @@
             <div class="col-md-4">
                 <div class="summary">
                     <h3>Ringkasan Belanja</h3>
-                    <div class="summary-item">
+                    <div id="summary-list">
+                        <small>Pilih produk untuk melihat ringkasan.</small>
+                    </div>
+                    <div class="summary-item mt-2">
                         <span class="text">Total Terpilih</span>
                         <span class="price" id="selected-total">Rp0</span>
                     </div>
-                    <button type="submit" form="checkout-form" class="btn btn-primary btn-block" id="checkout-btn" disabled>
+                    <button type="submit" form="checkout-form" class="btn btn-primary btn-block" id="checkout-btn">
                         Lanjut ke Pembayaran
                     </button>
                 </div>
@@ -88,6 +92,27 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
+        // Select All functionality
+        $('#select-all').on('change', function() {
+            var checked = $(this).is(':checked');
+            $('.item-checkbox').prop('checked', checked);
+            calculateSelectedTotal();
+        });
+
+        // Individual checkbox change (delegated for dynamic content)
+        $(document).on('change', '.item-checkbox', function() {
+            // Jika semua tercentang, select-all ikut centang, jika tidak, select-all tidak centang
+            var allChecked = $('.item-checkbox').length > 0 && $('.item-checkbox:checked').length === $('.item-checkbox').length;
+            $('#select-all').prop('checked', allChecked);
+            calculateSelectedTotal();
+        });
+
+        // Saat halaman dimuat, pastikan select-all sinkron
+        function syncSelectAll() {
+            var allChecked = $('.item-checkbox').length > 0 && $('.item-checkbox:checked').length === $('.item-checkbox').length;
+            $('#select-all').prop('checked', allChecked);
+        }
+
         // Update quantity
         $('.quantity-input').change(function() {
             const id = $(this).data('id');
@@ -109,13 +134,17 @@
         });
 
         // Remove item
-        $('.remove-item').click(function(e) {
-            e.preventDefault(); // Tambahkan ini untuk mencegah default action
-            
+        // Pastikan tombol delete tidak bertindak sebagai submit form
+        $(document).on('mousedown', '.remove-item', function(e) {
+            // Hapus e.preventDefault(); agar tombol tetap bisa di-focus, tapi jangan submit form
+            e.stopPropagation();
+        });
+        $(document).on('click', '.remove-item', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             if(confirm('Apakah Anda yakin ingin menghapus produk ini dari keranjang?')) {
                 const id = $(this).data('id');
-                const $row = $(this).closest('tr'); // Dapatkan baris yang akan dihapus
-                
+                const $row = $(this).closest('tr');
                 $.ajax({
                     url: '/keranjang/remove/' + id,
                     method: 'DELETE',
@@ -124,12 +153,10 @@
                     },
                     success: function(response) {
                         if(response.success) {
-                            // Hapus baris dari DOM
                             $row.fadeOut(300, function() {
                                 $(this).remove();
-                                calculateSelectedTotal(); // Update total
-                                
-                                // Jika keranjang kosong, reload halaman
+                                calculateSelectedTotal();
+                                syncSelectAll();
                                 if($('.item-checkbox').length === 0) {
                                     location.reload();
                                 }
@@ -143,41 +170,41 @@
             }
         });
 
-        // Individual checkbox change
-        $(document).on('change', '.item-checkbox', function() {
-            if ($('.item-checkbox:checked').length === $('.item-checkbox').length) {
-                $('#select-all').prop('checked', true);
-            } else {
-                $('#select-all').prop('checked', false);
-            }
-            calculateSelectedTotal();
-        });
-
-        // Calculate selected total
+        // Calculate selected total and update summary
         function calculateSelectedTotal() {
             let total = 0;
             let checkedItems = 0;
-            
+            let summaryHtml = '';
             $('.item-checkbox:checked').each(function() {
-                const itemId = $(this).val();
-                const subtotalText = $(this).closest('tr').find('td:nth-child(5)').text();
-                const subtotal = parseInt(subtotalText.replace(/[^\d]/g, ''));
+                const $row = $(this).closest('tr');
+                // Ambil nama produk tanpa gambar
+                const namaProduk = $row.find('td:nth-child(2)').clone().children().remove().end().text().trim();
+                const jumlah = $row.find('.quantity-input').val();
+                const subtotalText = $row.find('td:nth-child(5)').text().replace(/\s/g, '');
+                // Pastikan parsing angka benar
+                const subtotal = parseInt(subtotalText.replace(/[^\d]/g, '')) || 0;
                 total += subtotal;
                 checkedItems++;
+                summaryHtml += `<div class="mb-1">
+                    <strong>${namaProduk}</strong><br>
+                    Jumlah: ${jumlah}<br>
+                    Subtotal: ${subtotalText}
+                </div>`;
             });
 
-            $('#selected-total').text('Rp' + total.toLocaleString('id-ID'));
-            
-            // Enable/disable checkout button
-            if (checkedItems > 0) {
-                $('#checkout-btn').prop('disabled', false);
-            } else {
-                $('#checkout-btn').prop('disabled', true);
+            if (checkedItems === 0) {
+                summaryHtml = '<small>Pilih produk untuk melihat ringkasan.</small>';
             }
+            $('#summary-list').html(summaryHtml);
+            $('#selected-total').text('Rp' + total.toLocaleString('id-ID'));
+
+            // Enable/disable checkout button
+            $('#checkout-btn').prop('disabled', checkedItems === 0);
         }
 
-        // Initial calculation
+        // Initial calculation & sync select-all
         calculateSelectedTotal();
+        syncSelectAll();
     });
 </script>
 @endpush

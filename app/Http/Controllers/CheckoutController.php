@@ -5,187 +5,180 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Penjualan;
 use App\Models\DetailPenjualan;
-use App\Models\Obat;
 use App\Models\MetodeBayar;
 use App\Models\JenisPengiriman;
-use App\Models\Pelanggan;
 use App\Models\Keranjang;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Obat;
 use Midtrans\Config;
 use Midtrans\Snap;
 use Midtrans\Notification;
+use Illuminate\Support\Facades\DB;
 
 class CheckoutController extends Controller
 {
-    protected $midtransMethodId;
+    protected $midtransMethod;
+
     public function __construct()
     {
-        // Set Midtrans configuration
-        Config::$serverKey = config('midtrans.serverKey');
-        Config::$isProduction = config('midtrans.isProduction');
-        Config::$isSanitized = true;
-        Config::$is3ds = true;
-        $this->midtransMethodId = MetodeBayar::where('metode_pembayaran', 'Midtrans')->value('id');
-    }
-
-    public function checkout(Request $request)
-    {
-        $request->validate([
-            'metode_bayar' => 'required|exists:metode_bayars,id',
-            'alamat_pengiriman' => 'required|string',
-        ]);
-
-        $penjualan = Penjualan::create([
-            'id_pelanggan' => Auth::guard('pelanggan')->id(),
-            'id_metode_bayar' => $request->metode_bayar,
-            'total_bayar' => $this->calculateTotal($request->obat),
-            'status_order' => 'Pending',
-            'alamat_pengiriman' => $request->alamat_pengiriman,
-        ]);
-
-        foreach ($request->obat as $item) {
-            DetailPenjualan::create([
-                'id_penjualan' => $penjualan->id,
-                'id_obat' => $item['id_obat'],
-                'jumlah_beli' => $item['jumlah'],
-                'harga_beli' => $item['harga'],
-                'subtotal' => $item['jumlah'] * $item['harga'],
-            ]);
+        $this->midtransMethod = MetodeBayar::where('payment_gateway', 'midtrans')->first();
+        
+        if ($this->midtransMethod) {
+            Config::$serverKey = config('midtrans.serverKey');
+            Config::$isProduction = config('midtrans.isProduction');
+            Config::$isSanitized = true;
+            Config::$is3ds = true;
         }
-
-        return $this->processMidtransPayment($penjualan, $request->obat);
     }
 
     public function processCheckout(Request $request)
     {
-    try {
-        $validated = $request->validate([
-            'id_metode_bayar' => 'required|exists:metode_bayars,id',
-            'id_jenis_kirim' => 'required|exists:jenis_pengirimans,id',
-            'alamat_pengiriman' => 'required|string|max:255',
-            'catatan' => 'nullable|string|max:500',
-            'selected_items' => 'required|array',
-            'selected_items.*' => 'exists:keranjangs,id'
-        ]);
+        \Log::debug('Checkout request data:', $request->all());
 
-        $pelangganId = session('loginId');
-        $selectedItems = $request->input('selected_items', []);
-        
-        $keranjangItems = Keranjang::with('obat')
-            ->where('id_pelanggan', $pelangganId) 
-            ->whereIn('id', $selectedItems)
-            ->get();
-
-        if ($keranjangItems->isEmpty()) {
-            return redirect()->route('keranjang')->with('error', 'Tidak ada item yang dipilih untuk checkout');
-        }
-
-        // Calculate totals
-        $subtotal = $keranjangItems->sum('subtotal');
-        $jenisPengiriman = JenisPengiriman::find($request->id_jenis_kirim);
-        $ongkosKirim = $jenisPengiriman->harga;
-        $biayaApp = 0;
-        $totalBayar = $subtotal + $ongkosKirim + $biayaApp;
-
-        // Create penjualan record
-        $penjualan = Penjualan::create([
-            'id_pelanggan' => $pelangganId,
-            'id_metode_bayar' => $request->id_metode_bayar,
-            'id_jenis_kirim' => $request->id_jenis_kirim,
-            'tgl_penjualan' => now(),
-            'ongkos_kirim' => $ongkosKirim,
-            'biaya_app' => $biayaApp,
-            'total_bayar' => $totalBayar,
-            'status_order' => 'Menunggu Pembayaran',
-            'keterangan_status' => 'Pesanan baru dibuat',
-            'alamat_pengiriman' => $request->alamat_pengiriman,
-            'catatan' => $request->catatan,
-        ]);
-
-        // Create detail penjualan records
-        foreach ($keranjangItems as $item) {
-            DetailPenjualan::create([
-                'id_penjualan' => $penjualan->id,
-                'id_obat' => $item->id_obat,
-                'jumlah_beli' => $item->jumlah_beli,
-                'harga_beli' => $item->obat->harga_jual,
-                'subtotal' => $item->subtotal,
+        try {
+            $validated = $request->validate([
+                'id_metode_bayar' => 'required|exists:metode_bayars,id',
+                'id_jenis_kirim' => 'required|exists:jenis_pengirimans,id',
+                'alamat_pengiriman' => 'required|string|max:255',
+                'catatan' => 'nullable|string|max:500',
+                'selected_items' => 'required|array|min:1',
+                'selected_items.*' => 'exists:keranjangs,id,id_pelanggan,'.session('loginId')
             ]);
-
-            // Remove item from cart
-            $item->delete();
-        }
-
-        // Process Midtrans payment if selected
-        $midtransMethod = MetodeBayar::where('metode_pembayaran', 'Midtrans')->first();
-
-        if ($request->id_metode_bayar == $midtransMethod->id) {
-            // Proses Midtrans
-            return $this->processMidtransPayment($penjualan, $keranjangItems, $ongkosKirim);
-        } else {
-            // Proses metode bayar biasa
-            return redirect()->route('payment.finish', [
-                'order_id' => 'ORDER-'.$penjualan->id,
-                'status' => 'pending'
-            ]);
-        }
-
-        // Process Midtrans payment if selected
-        if ($request->id_metode_bayar == MetodeBayar::where('metode_pembayaran', 'Midtrans')->first()->id) {
-            $paymentData = $this->processMidtransPayment($penjualan, $keranjangItems, $ongkosKirim);
-            
-            if ($paymentData instanceof \Illuminate\Http\RedirectResponse) {
-                return $paymentData;
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Checkout validation failed:', $e->errors());
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Validasi gagal',
+                    'errors' => $e->errors()
+                ], 422);
             }
-            
-            return response()->json([
-                'snapToken' => $snapToken ?? null,
-                'redirect' => $request->id_metode_bayar != $this->midtransMethodId 
-                    ? route('payment.finish', ['order_id' => 'ORDER-'.$penjualan->id, 'status' => 'pending'])
-                    : null
-            ]);
+            throw $e;
         }
+
+        DB::beginTransaction();
+
+        try {
+            $pelangganId = session('loginId');
+            $selectedItems = $request->input('selected_items', []);
+            
+            $keranjangItems = Keranjang::with('obat')
+                ->where('id_pelanggan', $pelangganId)
+                ->whereIn('id', $selectedItems)
+                ->get();
+
+            if ($keranjangItems->isEmpty()) {
+                return redirect()->route('keranjang')->with('error', 'No items selected for checkout');
+            }
+
+            // Calculate totals
+            $subtotal = $keranjangItems->sum('subtotal');
+            $jenisPengiriman = JenisPengiriman::findOrFail($request->id_jenis_kirim);
+            $ongkosKirim = $jenisPengiriman->harga ?? 0; // Pastikan ada nilai default
+            $biayaApp = 0; // Default value jika tidak ada
+            $totalBayar = $subtotal + $ongkosKirim + $biayaApp;
+
+            // Create transaction
+            $penjualan = Penjualan::create([
+                'id_pelanggan' => $pelangganId,
+                'id_metode_bayar' => $request->id_metode_bayar,
+                'id_jenis_kirim' => $request->id_jenis_kirim,
+                'tgl_penjualan' => now(),
+                'ongkos_kirim' => $ongkosKirim,
+                'biaya_app' => $biayaApp,
+                'total_bayar' => $totalBayar,
+                'status_order' => 'Menunggu Konfirmasi',
+                'keterangan_status' => 'Pesanan baru dibuat',
+                'alamat_pengiriman' => $request->alamat_pengiriman,
+                'catatan' => $request->catatan,
+            ]);
+
+            // Create order items
+            foreach ($keranjangItems as $item) {
+                DetailPenjualan::create([
+                    'id_penjualan' => $penjualan->id,
+                    'id_obat' => $item->id_obat,
+                    'jumlah_beli' => $item->jumlah_beli,
+                    'harga_beli' => $item->obat->harga_jual,
+                    'subtotal' => $item->subtotal,
+                ]);
+
+                // Update stock
+                $item->obat->decrement('stok', $item->jumlah_beli);
+                
+                // Remove from cart
+                $item->delete();
+            }
+
+            // Create initial shipping data
+            $pengiriman = Pengiriman::create([
+                'id_penjualan' => $penjualan->id,
+                'no_invoice' => 'INV-' . $penjualan->id . '-' . time(),
+                'status_kirim' => 'Menunggu Pembayaran',
+                'nama_kurir' => $jenisPengiriman->nama_dispatch ?? 'Belum ditentukan',
+                'telpon_kurir' => '',
+                'keterangan' => 'Menunggu pembayaran dan konfirmasi'
+            ]);
+
+            // Process payment
+            if ($this->isMidtransPayment($request->id_metode_bayar)) {
+                $midtransResponse = $this->processMidtransPayment($penjualan, $keranjangItems, $ongkosKirim);
+                
+                if (isset($midtransResponse['snapToken'])) {
+                    DB::commit();
+                    return response()->json([
+                        'snapToken' => $midtransResponse['snapToken'],
+                        'id_penjualan' => $midtransResponse['id_penjualan']
+                    ]);
+                } else {
+                    throw new \Exception('Gagal memproses pembayaran Midtrans');
+                }
+            }
+
+            DB::commit();
             return response()->json([
-                'redirect' => route('payment.finish'),
-                'order_id' => 'ORDER-' . $penjualan->id,
-                'status' => 'pending'
+                'redirect' => route('payment.finish', ['id_penjualan' => $penjualan->id, 'status' => 'pending'])
             ]);
 
         } catch (\Exception $e) {
-        return response()->json([
-            'error' => true,
-                'message' => $e->getMessage()
+            DB::rollBack();
+            \Log::error('Checkout error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Checkout failed: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    private function processMidtransPayment($penjualan, $items, $ongkosKirim = 0)
+    private function isMidtransPayment($methodId)
+    {
+        return $this->midtransMethod && $methodId == $this->midtransMethod->id;
+    }
+
+    private function processMidtransPayment($penjualan, $items, $shippingCost)
     {
         $orderId = 'ORDER-' . $penjualan->id . '-' . time();
         
         $params = [
             'transaction_details' => [
-                'order_id' => $orderId,
+                'id_penjualan' => $orderId,
                 'gross_amount' => $penjualan->total_bayar,
             ],
             'customer_details' => [
-                'first_name' => optional($penjualan->pelanggan)->nama ?? 'Pelanggan',
-                'email' => optional($penjualan->pelanggan)->email ?? 'customer@email.com',
+                'first_name' => optional($penjualan->pelanggan)->nama ?? 'Customer',
+                'email' => optional($penjualan->pelanggan)->email ?? 'customer@example.com',
                 'phone' => optional($penjualan->pelanggan)->no_telp ?? '',
             ],
-            'item_details' => $this->buildItemDetails($items, $ongkosKirim),
+            'item_details' => $this->buildItemDetails($items, $shippingCost),
         ];
 
         try {
             $snapToken = Snap::getSnapToken($params);
             
-            // Update order ID in database
-            $penjualan->update(['order_id' => $orderId]);
+            // Update order with Midtrans reference
+            $penjualan->update(['id_penjualan' => $orderId]);
 
             return view('checkout.midtrans', [
                 'snapToken' => $snapToken,
-                'penjualan' => $penjualan,
-                'order_id' => $orderId
+                'id_penjualan' => $orderId,
+                'penjualan' => $penjualan
             ]);
 
         } catch (\Exception $e) {
@@ -193,121 +186,26 @@ class CheckoutController extends Controller
         }
     }
 
-    public function paymentFinish(Request $request)
-    {
-        $orderId = $request->order_id;
-        $status = $request->status;
-        
-        // Extract penjualan ID from order ID
-        $penjualanId = explode('-', $orderId)[1];
-        $penjualan = Penjualan::findOrFail($penjualanId);
-        
-        // Update status based on payment result
-        if ($status === 'success') {
-            $penjualan->update([
-                'status_order' => 'Paid',
-                'keterangan_status' => 'Pembayaran berhasil'
-            ]);
-        } elseif ($status === 'pending') {
-            $penjualan->update([
-                'status_order' => 'Menunggu Pembayaran',
-                'keterangan_status' => 'Menunggu konfirmasi pembayaran'
-            ]);
-        } else {
-            $penjualan->update([
-                'status_order' => 'Gagal',
-                'keterangan_status' => 'Pembayaran gagal'
-            ]);
-        }
-
-        return view('checkout.finish', [
-            'status' => $status,
-            'penjualan' => $penjualan,
-            'order_id' => $orderId
-        ]);
-    }
-
-    public function handleNotification(Request $request)
-    {
-        $notif = new Notification();
-        
-        $transaction = $notif->transaction_status;
-        $type = $notif->payment_type;
-        $orderId = $notif->order_id;
-        $fraud = $notif->fraud_status;
-
-        $penjualan = Penjualan::where('order_id', $orderId)->first();
-
-        if (!$penjualan) {
-            return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
-        }
-
-        // Handle transaction status
-        switch ($transaction) {
-            case 'capture':
-                if ($type == 'credit_card') {
-                    if ($fraud == 'challenge') {
-                        $status = 'Pending';
-                        $message = 'Card challenged';
-                    } else {
-                        $status = 'Paid';
-                        $message = 'Payment captured';
-                    }
-                }
-                break;
-            case 'settlement':
-                $status = 'Paid';
-                $message = 'Payment settled';
-                break;
-            case 'pending':
-                $status = 'Pending';
-                $message = 'Waiting payment';
-                break;
-            case 'deny':
-                $status = 'Failed';
-                $message = 'Payment denied';
-                break;
-            case 'expire':
-                $status = 'Expired';
-                $message = 'Payment expired';
-                break;
-            case 'cancel':
-                $status = 'Canceled';
-                $message = 'Payment canceled';
-                break;
-            default:
-                $status = 'Pending';
-                $message = 'Unknown status';
-        }
-
-        $penjualan->update([
-            'status_order' => $status,
-            'keterangan_status' => $message
-        ]);
-
-        return response()->json(['status' => 'success']);
-    }
-
-    private function buildItemDetails($items, $ongkir)
+    private function buildItemDetails($items, $shippingCost)
     {
         $itemDetails = [];
         
         foreach ($items as $item) {
-            $obat = is_array($item) ? Obat::find($item['id_obat']) : $item->obat;
+            $obat = $item->obat ?? Obat::find($item['id_obat']);
             
             $itemDetails[] = [
                 'id' => $obat->id,
-                'price' => is_array($item) ? $item['harga'] : $obat->harga_jual,
-                'quantity' => is_array($item) ? $item['jumlah'] : $item->jumlah_beli,
+                'price' => $obat->harga_jual,
+                'quantity' => $item->jumlah_beli ?? $item['jumlah'],
                 'name' => $obat->nama_obat,
             ];
         }
 
-        // Add shipping cost if exists
-        if ($ongkir > 0) {
+        // Add shipping as item
+        if ($shippingCost > 0) {
             $itemDetails[] = [
                 'id' => 'SHIPPING',
-                'price' => $ongkir,
+                'price' => $shippingCost,
                 'quantity' => 1,
                 'name' => 'Biaya Pengiriman',
             ];
@@ -316,12 +214,70 @@ class CheckoutController extends Controller
         return $itemDetails;
     }
 
-    private function calculateTotal($items)
+    public function paymentFinish(Request $request)
     {
-        $total = 0;
-        foreach ($items as $item) {
-            $total += $item['jumlah'] * $item['harga'];
+        $orderId = $request->id_penjualan;
+        $status = $request->status;
+
+        // Ambil id numerik dari format ORDER-<id>-<timestamp>
+        $numericId = null;
+        if (preg_match('/ORDER-(\d+)-/', $orderId, $matches)) {
+            $numericId = $matches[1];
         }
-        return $total;
+
+        // Cari penjualan berdasarkan id_penjualan atau id
+        $penjualan = Penjualan::where('id_penjualan', $orderId)
+            ->when($numericId, function($query) use ($numericId) {
+                $query->orWhere('id', $numericId);
+            })
+            ->firstOrFail();
+
+        $statusMap = [
+            'success' => ['status' => 'paid', 'message' => 'Pembayaran berhasil'],
+            'pending' => ['status' => 'pending', 'message' => 'Menunggu pembayaran'],
+            'failed' => ['status' => 'failed', 'message' => 'Pembayaran gagal']
+        ];
+
+        $statusData = $statusMap[$status] ?? $statusMap['pending'];
+        
+        $penjualan->update([
+            'status_order' => $statusData['status'],
+            'keterangan_status' => $statusData['message']
+        ]);
+
+        return view('checkout.finish', [
+            'status' => $status,
+            'penjualan' => $penjualan,
+            'id_penjualan' => $orderId
+        ]);
+    }
+
+    public function handleNotification(Request $request)
+    {
+        $notif = new Notification();
+        
+        $transaction = $notif->transaction_status;
+        $orderId = $notif->id_penjualan;
+
+        $penjualan = Penjualan::where('id_penjualan', $orderId)->first();
+        if (!$penjualan) {
+            return response()->json(['status' => 'error', 'message' => 'Order not found'], 404);
+        }
+
+        $statusMap = [
+            'capture' => 'paid',
+            'settlement' => 'paid',
+            'pending' => 'pending',
+            'deny' => 'failed',
+            'expire' => 'expired',
+            'cancel' => 'canceled'
+        ];
+
+        $penjualan->update([
+            'status_order' => $statusMap[$transaction] ?? 'pending',
+            'keterangan_status' => 'Status Midtrans: ' . $transaction
+        ]);
+
+        return response()->json(['status' => 'success']);
     }
 }

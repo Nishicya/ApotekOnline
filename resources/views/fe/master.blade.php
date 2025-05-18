@@ -29,6 +29,14 @@
 		<link type="text/css" rel="stylesheet" href="{{ asset('fe/css/style.css') }}"/>
 		<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
+		<!-- jQuery Plugins -->
+		<script src="{{ asset('fe/js/jquery.min.js') }}"></script>
+		<script src="{{ asset('fe/js/bootstrap.min.js') }}"></script>
+		<script src="{{ asset('fe/js/slick.min.js') }}"></script>
+		<script src="{{ asset('fe/js/nouislider.min.js') }}"></script>
+		<script src="{{ asset('fe/js/jquery.zoom.min.js') }}"></script>
+		<script src="{{ asset('fe/js/main.js') }}"></script>
+
 		<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
 		<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
 		<!--[if lt IE 9]>
@@ -126,11 +134,4 @@
 		
 
 	</body>
-	<!-- jQuery Plugins -->
-		<script src="{{ asset('fe/js/jquery.min.js') }}"></script>
-		<script src="{{ asset('fe/js/bootstrap.min.js') }}"></script>
-		<script src="{{ asset('fe/js/slick.min.js') }}"></script>
-		<script src="{{ asset('fe/js/nouislider.min.js') }}"></script>
-		<script src="{{ asset('fe/js/jquery.zoom.min.js') }}"></script>
-		<script src="{{ asset('fe/js/main.js') }}"></script>
 </html>

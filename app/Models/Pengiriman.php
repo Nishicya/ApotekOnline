@@ -16,7 +16,7 @@ class Pengiriman extends Model
         'id_penjualan',
         'no_invoice',
         'tgl_kirim',
-        'tgl_tiba',
+        'tgl_tiba', 
         'status_kirim',
         'nama_kurir',
         'telpon_kurir',
@@ -30,5 +30,13 @@ class Pengiriman extends Model
     public function penjualan(): BelongsTo
     {
         return $this->belongsTo(Penjualan::class, 'id_penjualan');
+    }
+
+    /**
+     * Get the jenis pengiriman that owns the delivery.
+     */
+    public function jenisPengiriman(): BelongsTo
+    {
+        return $this->belongsTo(JenisPengiriman::class, 'id_jenis_kirim');
     }
 }

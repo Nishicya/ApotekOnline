@@ -43,20 +43,30 @@
                                             @endif
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody> 
                                         @foreach($pengiriman as $nmr => $item)
                                         <tr>
                                             <td>{{ $nmr + 1 }}.</td>
                                             <td>{{ $item->no_invoice }}</td>
                                             <td>Penjualan #{{ $item->penjualan->id }}</td>
-                                            <td>{{ Carbon\Carbon::parse($item->tgl_kirim)->format('d/m/Y H:i') }}</td>
-                                            <td>{{ $item->tgl_tiba ? Carbon\Carbon::parse($item->tgl_tiba)->format('d/m/Y H:i') : '-' }}</td>
+                                            <td>{{ Carbon\Carbon::parse($item->tgl_kirim)->format('d/m/Y') }}</td>
+                                            <td>
+                                                @if($item->tgl_kirim)
+                                                    {{ Carbon\Carbon::parse($item->tgl_kirim)->addDays(2)->format('d/m/Y') }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
                                             <td>
                                                 <span class="badge rounded-pill 
                                                     @if($item->status_kirim == 'Sedang Dikirim') bg-warning text-dark
-                                                    @else bg-success @endif">
+                                                    @elseif($item->status_kirim == 'Tiba Di Tujuan') bg-success
+                                                    @else bg-secondary @endif">
                                                     {{ $item->status_kirim }}
                                                 </span>
+                                                @if($item->penjualan && strtolower($item->penjualan->status_order) == 'selesai')
+                                                    <span class="badge rounded-pill bg-dark ms-1">Selesai</span>
+                                                @endif
                                             </td>
                                             <td>{{ $item->nama_kurir }} ({{ $item->telpon_kurir }})</td>
                                             @if(auth()->user()->role !== 'pemilik')
@@ -72,6 +82,33 @@
                                                             <i class="fas fa-trash-alt me-1"></i> Hapus
                                                         </button>
                                                     </form>
+                                                    @if($item->penjualan && $item->penjualan->status_order == 'Menunggu Kurir')
+                                                        <button type="button" class="btn btn-success btn-sm rounded-pill ms-2" data-bs-toggle="modal" data-bs-target="#konfirmasiKurirModal{{ $item->id }}">
+                                                            <i class="fas fa-check-circle me-1"></i> Konfirmasi Kurir
+                                                        </button>
+                                                        <!-- Modal -->
+                                                        <div class="modal fade" id="konfirmasiKurirModal{{ $item->id }}" tabindex="-1" aria-labelledby="konfirmasiKurirModalLabel{{ $item->id }}" aria-hidden="true">
+                                                          <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                              <form action="{{ route('pengiriman.konfirmasiKurir', $item->id) }}" method="POST">
+                                                                @csrf
+                                                                @method('PUT')
+                                                                <div class="modal-header">
+                                                                  <h5 class="modal-title" id="konfirmasiKurirModalLabel{{ $item->id }}">Konfirmasi Kurir</h5>
+                                                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                  Apakah Anda yakin ingin mengkonfirmasi kurir untuk pengiriman ini? Status penjualan akan berubah menjadi <b>Diproses</b>.
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                                  <button type="submit" class="btn btn-success">Konfirmasi</button>
+                                                                </div>
+                                                              </form>
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </td>
                                             @endif

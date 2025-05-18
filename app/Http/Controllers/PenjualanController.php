@@ -12,16 +12,24 @@ use App\Models\JenisPengiriman;
 use App\Models\DetailPenjualan; 
 use App\Models\User;
 use App\Models\Obat;
+use App\Models\Pengiriman;
 
 class PenjualanController extends Controller
 {
     public function index()
     {
-        $penjualan = Penjualan::with(['pelanggan', 'metodeBayar'])->latest()->get();
+        $penjualan = Penjualan::with(['pelanggan', 'metodeBayar', 'pengiriman'])->latest()->get();
+
+        // Ambil daftar kurir untuk modal pemilihan kurir (khusus karyawan)
+        $kurirList = [];
+        if (auth()->check() && auth()->user()->role == 'karyawan') {
+            $kurirList = \App\Models\User::where('role', 'kurir')->get();
+        }
 
         return view('be.penjualan.index', [
             'title' => 'Daftar Penjualan',
             'penjualan' => $penjualan,
+            'kurirList' => $kurirList,
         ]);
     }
 
@@ -77,7 +85,7 @@ class PenjualanController extends Controller
             'total_bayar' => 'required|numeric|min:0',
             'status_order' => 'required|string|max:50',
             'keterangan_status' => 'nullable|string|max:255',
-            'id_jenis_kirim' => 'required|exists:jenis_pengirimen,id',
+            'id_jenis_kirim' => 'required|exists:jenis_pengirimans,id', // <-- perbaiki di sini
             'id_pelanggan' => 'required|exists:pelanggans,id',
         ];
 
@@ -102,6 +110,18 @@ class PenjualanController extends Controller
                 'jumlah_beli' => $detail['jumlah_beli'],
                 'harga_beli' => $detail['harga_beli'],
                 'subtotal' => $detail['subtotal'],
+            ]);
+        }
+
+        // Otomatis buat pengiriman jika status_order "Menunggu Kurir"
+        if (strtolower($penjualan->status_order) == 'menunggu kurir') {
+            Pengiriman::create([
+                'id_penjualan' => $penjualan->id,
+                'no_invoice' => 'INV-' . time() . '-' . $penjualan->id,
+                'tgl_kirim' => now(),
+                'status_kirim' => 'Sedang Dikirim',
+                'nama_kurir' => '-',
+                'telpon_kurir' => '-',
             ]);
         }
 
@@ -132,7 +152,7 @@ class PenjualanController extends Controller
             'tgl_penjualan' => 'required|date',
             'id_pelanggan' => 'required|exists:pelanggans,id',
             'id_metode_bayar' => 'required|exists:metode_bayars,id',
-            'id_jenis_kirim' => 'required|exists:jenis_pengirimen,id',
+            'id_jenis_kirim' => 'required|exists:jenis_pengirimans,id', // <-- perbaiki di sini
             'ongkos_kirim' => 'required|numeric|min:0',
             'biaya_app' => 'required|numeric|min:0',
             'status_order' => 'required|string|max:50',
@@ -193,6 +213,52 @@ class PenjualanController extends Controller
         $penjualan->delete();
 
         return redirect()->route('penjualan.manage')->with('success', 'Data penjualan berhasil dihapus.');
+    }
+
+    public function konfirmasi($id, Request $request)
+    {
+        $penjualan = Penjualan::with('pengiriman')->findOrFail($id);
+
+        // Konfirmasi oleh kasir (status_order == 'Menunggu Konfirmasi')
+        if (strtolower($penjualan->status_order) == 'menunggu konfirmasi') {
+            $penjualan->status_order = 'Menunggu Kurir';
+            $penjualan->ongkos_kirim = 8000;
+            $penjualan->total_bayar = $penjualan->total_bayar - $penjualan->getOriginal('ongkos_kirim') + 8000;
+            $penjualan->save();
+            return redirect()->route('penjualan.manage')->with('success', 'Pesanan berhasil dikonfirmasi!');
+        }
+
+        // Konfirmasi oleh karyawan (status_order == 'Menunggu Kurir')
+        if (strtolower($penjualan->status_order) == 'menunggu kurir') {
+            $request->validate([
+                'nama_kurir' => 'required|string|max:30',
+                'telpon_kurir' => 'required|string|max:15',
+            ]);
+            // Cek jika pengiriman sudah ada
+            if (!$penjualan->pengiriman) {
+                \App\Models\Pengiriman::create([
+                    'id_penjualan' => $penjualan->id,
+                    'no_invoice' => 'INV-' . time() . '-' . $penjualan->id,
+                    'tgl_kirim' => now(),
+                    'status_kirim' => 'Sedang Dikirim',
+                    'nama_kurir' => $request->nama_kurir,
+                    'telpon_kurir' => $request->telpon_kurir,
+                ]);
+            } else {
+                // Update kurir jika pengiriman sudah ada
+                $penjualan->pengiriman->update([
+                    'nama_kurir' => $request->nama_kurir,
+                    'telpon_kurir' => $request->telpon_kurir,
+                    'status_kirim' => 'Sedang Dikirim',
+                    'tgl_kirim' => now(),
+                ]);
+            }
+            $penjualan->status_order = 'Diproses';
+            $penjualan->save();
+            return redirect()->route('penjualan.manage')->with('success', 'Pengiriman berhasil dibuat dan pesanan diproses.');
+        }
+
+        return redirect()->route('penjualan.manage')->with('success', 'Status pesanan tidak valid untuk konfirmasi.');
     }
 }
 

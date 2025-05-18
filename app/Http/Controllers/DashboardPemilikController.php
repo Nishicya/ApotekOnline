@@ -70,10 +70,18 @@ class DashboardPemilikController extends Controller
         $recentPelanggans = Pelanggan::latest()->take(5)->get();
         $recentDistributors = Distributor::latest()->take(5)->get();
 
+        // Sales Status Stats
+        $salesStats = [
+            'completed' => Penjualan::where('status_order', 'Selesai')->count(),
+            'pending' => Penjualan::whereIn('status_order', ['Menunggu Konfirmasi', 'Diproses', 'Menunggu Kurir'])->count(),
+            'cancelled' => Penjualan::whereIn('status_order', ['Dibatalkan Pembeli', 'Dibatalkan Penjual'])->count(),
+        ];
+
         // Delivery Stats
         $deliveryStats = [
             'processing' => Pengiriman::where('status_kirim', 'Sedang Dikirim')->count(),
             'shipped' => Pengiriman::where('status_kirim', 'Tiba Di Tujuan')->count(),
+            'failed' => Pengiriman::where('status_kirim', 'Gagal')->count(), // Tambahkan jika ada status gagal
         ];
 
         return view('be.pemilik.index', [
@@ -88,6 +96,7 @@ class DashboardPemilikController extends Controller
             'recentPelanggans' => $recentPelanggans,
             'recentDistributors' => $recentDistributors,
             'deliveryStats' => $deliveryStats,
+            'salesStats' => $salesStats,
         ]);
     }
 

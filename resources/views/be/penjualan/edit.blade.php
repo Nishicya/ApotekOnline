@@ -115,7 +115,7 @@
                                             @foreach($obats as $obat)
                                             <option value="{{ $obat->id }}" 
                                                 data-harga="{{ $obat->harga_jual }}"
-                                                {{ (old('id_obat.'.$index, is_object($detail) ? $detail->id_obat : $detail) == $obat->id ? 'selected' : '' }}>
+                                                {{ (old('id_obat.'.$index, is_object($detail) ? $detail->id_obat : $detail) == $obat->id ? 'selected' : '') }}>
                                                 {{ $obat->nama_obat }}
                                             </option>
                                             @endforeach

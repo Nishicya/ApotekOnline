@@ -26,7 +26,7 @@ class AuthController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6|max:12',
-            'role' => 'required|in:admin,pemilik,karyawan,apoteker,kasir',
+            'role' => 'required|in:admin,pemilik,karyawan,apoteker,kasir,kurir',
             'no_hp' => 'required',
         ]);
 
@@ -56,6 +56,8 @@ class AuthController extends Controller
                 return redirect()->intended('/apoteker')->with('Success', 'Registrasi berhasil!');
             case 'kasir':
                 return redirect()->intended('/kasir')->with('Success', 'Registrasi berhasil!');
+            case 'kurir':
+                return redirect()->intended('/kurir')->with('Success', 'Registrasi berhasil!');
             }
         } else {
             return back()->withErrors(['email' => 'Email atau Password Salah.']);
@@ -88,6 +90,8 @@ class AuthController extends Controller
                     return redirect()->intended('/karyawan');
                 case 'kasir':
                     return redirect()->intended('/kasir');
+                case 'kurir':
+                    return redirect()->intended('/kurir');
                 default:
                     return redirect('/home');
             }

@@ -9,10 +9,10 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 class PengirimanController extends Controller
-{
+{ 
     public function index()
     {
-        $pengiriman = Pengiriman::with('penjualan')->get();
+        $pengiriman = Pengiriman::with('penjualan')->latest()->get();
 
         return view('be.pengiriman.index', [
             'title' => 'Pengiriman Management',
@@ -26,15 +26,15 @@ class PengirimanController extends Controller
         
         return view('be.pengiriman.create', [
             'title' => 'Tambah Data Pengiriman',
-            'penjualan' => $penjualan,
+            'penjualan' => $penjualan, // perbaiki key agar konsisten dengan view
         ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'id_penjualan' => 'required|exists:penjualan,id|unique:pengiriman,id_penjualan',
-            'no_invoice' => 'required|unique:pengiriman,no_invoice',
+            'id_penjualan' => 'required|exists:penjualans,id|unique:pengirimans,id_penjualan', // perbaiki nama tabel
+            'no_invoice' => 'required|unique:pengirimans,no_invoice',
             'tgl_kirim' => 'required|date',
             'tgl_tiba' => 'nullable|date|after_or_equal:tgl_kirim',
             'status_kirim' => 'required|in:Sedang Dikirim,Tiba Di Tujuan',
@@ -56,7 +56,7 @@ class PengirimanController extends Controller
 
         Pengiriman::create($data);
 
-        return redirect()->route('pengiriman.index')->with('success', 'Data pengiriman berhasil ditambahkan.');
+        return redirect()->route('pengiriman.manage')->with('success', 'Data pengiriman berhasil ditambahkan.');
     }
 
     public function edit($id)
@@ -79,8 +79,8 @@ class PengirimanController extends Controller
         $pengiriman = Pengiriman::findOrFail($id);
 
         $request->validate([
-            'id_penjualan' => 'required|exists:penjualan,id|unique:pengiriman,id_penjualan,'.$id,
-            'no_invoice' => 'required|unique:pengiriman,no_invoice,'.$id,
+            'id_penjualan' => 'required|exists:penjualans,id|unique:pengirimans,id_penjualan,'.$id, // perbaiki nama tabel
+            'no_invoice' => 'required|unique:pengirimans,no_invoice,'.$id,
             'tgl_kirim' => 'required|date',
             'tgl_tiba' => 'nullable|date|after_or_equal:tgl_kirim',
             'status_kirim' => 'required|in:Sedang Dikirim,Tiba Di Tujuan',
@@ -107,7 +107,7 @@ class PengirimanController extends Controller
 
         $pengiriman->update($data);
 
-        return redirect()->route('pengiriman.index')->with('success', 'Data pengiriman berhasil diperbarui.');
+        return redirect()->route('pengiriman.manage')->with('success', 'Data pengiriman berhasil diperbarui.');
     }
 
     public function destroy($id)
@@ -121,6 +121,27 @@ class PengirimanController extends Controller
         
         $pengiriman->delete();
 
-        return redirect()->route('pengiriman.index')->with('success', 'Data pengiriman berhasil dihapus.');
+        return redirect()->route('pengiriman.manage')->with('success', 'Data pengiriman berhasil dihapus.');
+    }
+
+    public function konfirmasiKurir($id)
+    {
+        $pengiriman = Pengiriman::findOrFail($id);
+        $penjualan = $pengiriman->penjualan;
+        if ($penjualan && strtolower($penjualan->status_order) == 'menunggu kurir') {
+            $penjualan->status_order = 'Diproses';
+            $penjualan->save();
+            return redirect()->route('pengiriman.manage')->with('success', 'Pesanan berhasil dikonfirmasi ke kurir dan status penjualan menjadi Diproses.');
+        }
+        return redirect()->route('pengiriman.manage')->with('success', 'Status penjualan tidak valid untuk konfirmasi.');
+    }
+
+    public function show($id)
+    {
+        $pengiriman = Pengiriman::with('penjualan')->findOrFail($id);
+        return view('be.pengiriman.show', [
+            'title' => 'Detail Pengiriman',
+            'pengiriman' => $pengiriman,
+        ]);
     }
 }

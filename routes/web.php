@@ -19,6 +19,17 @@ use App\Http\Controllers\UsersController;
 use App\Http\Controllers\DashboardPemilikController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\KeranjangController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\MidtransController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\AboutController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\KaryawanController;
+use App\Http\Controllers\KasirController;
+use App\Http\Controllers\KurirController;
+use App\Http\Controllers\DetailPenjualanController;
+
 
 // ==================== Public Routes ====================
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
@@ -69,6 +80,7 @@ Route::get('/dashboard', function () {
         'apoteker' => redirect()->route('apoteker.dashboard'),
         'karyawan' => redirect()->route('karyawan.dashboard'),
         'kasir' => redirect()->route('kasir.dashboard'),
+        'kurir' => redirect()->route('kurir.dashboard'),
         default => redirect()->route('login')->withErrors('Akses ditolak. Silakan login kembali.'),
     };
 })->middleware('auth')->name('dashboard');
@@ -85,18 +97,18 @@ Route::prefix('pemilik')->middleware(['auth', CheckRoleUser::class . ':pemilik']
     Route::get('/dashboard/export-excel', [DashboardPemilikController::class, 'exportExcel'])->name('pemilik.dashboard.exportExcel');
 
     // Index
-    Route::get('/obat', [ObatController::class, 'index'])->name('daftarobat.index');
-    Route::get('/penjualan', [PenjualanController::class, 'index'])->name('laporanpenjualan.index');
-    Route::get('/pembelian', [PembelianController::class, 'index'])->name('laporanpembelian.index');
-    Route::get('/pelanggan', [PelangganManageController::class, 'index'])->name('daftarpelanggan.index');
-    Route::get('/distributor', [DistributorController::class, 'index'])->name('daftardistributor.index');
-    Route::get('/pengiriman', [PengirimanController::class, 'index'])->name('daftarpengiriman.index');
+    Route::get('/daftar-obat', [ObatController::class, 'index'])->name('daftarobatpemilik.index');
+    Route::get('/laporan-penjualan', [PenjualanController::class, 'index'])->name('laporanpenjualan.index');
+    Route::get('/laporan-pembelian', [PembelianController::class, 'index'])->name('laporanpembelian.index');
+    Route::get('/daftar-pelanggan', [PelangganManageController::class, 'index'])->name('daftarpelanggan.index');
+    Route::get('/daftar-distributor', [DistributorController::class, 'index'])->name('daftardistributor.index');
+    Route::get('/daftar-pengiriman', [PengirimanController::class, 'index'])->name('daftarpengiriman.index');
 
     // Detail
     Route::get('/detail-obat', [ObatController::class, 'show'])->name('daftarobat.show');
     Route::get('/detail-penjualan', [PenjualanController::class, 'show'])->name('laporanpenjualan.show');
-    Route::get('/detail-pembelian', [PembelianController::class, 'show'])->name('laporanpembelian.show');
-    Route::get('/detail-distributor', [DistributorController::class, 'show'])->name('daftardistributor.show');
+    Route::get('/detail-pembelian/{id}', [PembelianController::class, 'show'])->name('laporanpembelian.show');
+    Route::get('/detail-distributor/{id}', [DistributorController::class, 'show'])->name('daftardistributor.show');
     Route::get('/detail-pengiriman', [PengirimanController::class, 'show'])->name('daftarpengiriman.show');
 });
 
@@ -106,18 +118,28 @@ Route::prefix('apoteker')->middleware(['auth', CheckRoleUser::class . ':apoteker
 
 Route::prefix('karyawan')->middleware(['auth', CheckRoleUser::class . ':karyawan'])->group(function () {
     Route::get('/', [App\Http\Controllers\KaryawanController::class, 'index'])->name('karyawan.dashboard');
+    // Daftar Kurir (index, show, destroy)
+    Route::get('/daftarkurir', [App\Http\Controllers\KaryawanController::class, 'daftarKurir'])->name('karyawan.daftarkurir.index');
+    Route::get('/daftarkurir/{id}', [App\Http\Controllers\KaryawanController::class, 'showKurir'])->name('karyawan.daftarkurir.show');
+    Route::delete('/daftarkurir/{id}', [App\Http\Controllers\KaryawanController::class, 'destroyKurir'])->name('karyawan.daftarkurir.destroy');
 });
 
 Route::prefix('kasir')->middleware(['auth', CheckRoleUser::class . ':kasir'])->group(function () {
     Route::get('/', [App\Http\Controllers\KasirController::class, 'index'])->name('kasir.dashboard');
-    Route::get('/dashboard', [DashboardKasirController::class, 'index'])->name('kasir.dashboard');
     Route::get('/obat', [ObatController::class, 'index'])->name('daftarobat.index');
 });
 
-// ==================== Profile Pelanggan ====================
+Route::prefix('kurir')->middleware(['auth', CheckRoleUser::class . ':kurir'])->group(function () {
+    Route::get('/', [App\Http\Controllers\KurirController::class, 'index'])->name('kurir.dashboard');
+});
+
+// ==================== Pelanggan ====================
 Route::middleware('auth:pelanggan')->group(function () {
     Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'index'])->name('fe.profile');
     Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('fe.profile.update');
+    Route::get('/pesanan', [App\Http\Controllers\PelangganController::class, 'pesanan'])->name('fe.pesanan');
+    Route::get('/pesanan/{id}', [App\Http\Controllers\PelangganController::class, 'showPesanan'])->name('fe.pesanan.show');
+    Route::post('/pesanan/konfirmasi/{pengiriman}', [App\Http\Controllers\PelangganController::class, 'konfirmasiPesanan'])->name('fe.pesanan.konfirmasi');
 });
 
 // ==================== Profile User ====================
@@ -164,7 +186,7 @@ Route::middleware(['auth', CheckRoleUser::class . ':apoteker,admin,pemilik'])->g
 });
 
 // Penjualan Management
-Route::middleware(['auth', CheckRoleUser::class . ':kasir,admin,pemilik'])->group(function () {
+Route::middleware(['auth', CheckRoleUser::class . ':kasir,admin,pemilik,karyawan'])->group(function () {
     Route::resource('penjualan', PenjualanController::class)->names([
         'index' => 'penjualan.manage',
         'create' => 'penjualan.create',
@@ -177,6 +199,8 @@ Route::middleware(['auth', CheckRoleUser::class . ':kasir,admin,pemilik'])->grou
 
     Route::post('/penjualan/upload-resep', [PenjualanController::class, 'uploadResep'])->name('penjualan.upload-resep');
     Route::delete('/penjualan/delete-resep', [PenjualanController::class, 'deleteResep'])->name('penjualan.delete-resep');
+    Route::post('/penjualan/{id}/konfirmasi', [PenjualanController::class, 'konfirmasi'])->name('penjualan.konfirmasi'); // untuk karyawan (POST)
+    Route::put('/penjualan/{id}/konfirmasi', [PenjualanController::class, 'konfirmasi'])->name('penjualan.konfirmasi'); // untuk kasir/admin (PUT)
 });
 
 // Distributor Management
@@ -243,10 +267,5 @@ Route::middleware(['auth', CheckRoleUser::class . ':karyawan,admin,pemilik'])->g
     ]);
 
     Route::resource('detail-pengiriman', App\Http\Controllers\DetailPengirimanController::class);
-}); 
-
-// Metode Bayar
-Route::middleware(['auth', CheckRoleUser::class . ':admin,kasir'])->group(function () {
-    Route::resource('metode-bayar', App\Http\Controllers\MetodeBayarController::class);
+    Route::put('/pengiriman/{id}/konfirmasi-kurir', [PengirimanController::class, 'konfirmasiKurir'])->name('pengiriman.konfirmasiKurir');
 });
-

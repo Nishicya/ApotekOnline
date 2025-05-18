@@ -31,7 +31,7 @@
                 <div class="form-group">
                     <label for="no_invoice">No. Invoice</label>
                     <input type="text" class="form-control" id="no_invoice" name="no_invoice" 
-                           value="{{ old('no_invoice') }}" required>
+                           value="{{ 'INV-' . time() . '-' . rand(100,999) }}" readonly required>
                     @error('no_invoice')
                         <div class="text-danger">{{ $message }}</div>
                     @enderror
@@ -72,12 +72,23 @@
                     @enderror
                 </div>
                 
+                <!-- Pilih Kurir -->
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="nama_kurir">Nama Kurir</label>
-                            <input type="text" class="form-control" id="nama_kurir" name="nama_kurir" maxlength="30"
-                                   value="{{ old('nama_kurir') }}" required>
+                            <select class="form-control" id="nama_kurir" name="nama_kurir" required onchange="setKurirTelp(this)">
+                                <option value="">Pilih Kurir</option>
+                                @php
+                                    $kurirList = \App\Models\User::where('role', 'kurir')->get();
+                                @endphp
+                                @foreach($kurirList as $kurir)
+                                    <option value="{{ $kurir->name }}" data-telp="{{ $kurir->no_hp }}"
+                                        {{ old('nama_kurir') == $kurir->name ? 'selected' : '' }}>
+                                        {{ $kurir->name }}
+                                    </option>
+                                @endforeach
+                            </select>
                             @error('nama_kurir')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
@@ -87,19 +98,26 @@
                         <div class="form-group">
                             <label for="telpon_kurir">Telepon Kurir</label>
                             <input type="text" class="form-control" id="telpon_kurir" name="telpon_kurir" maxlength="15"
-                                   value="{{ old('telpon_kurir') }}" required>
+                                   value="{{ old('telpon_kurir') }}" required readonly>
                             @error('telpon_kurir')
                                 <div class="text-danger">{{ $message }}</div>
                             @enderror
                         </div>
                     </div>
                 </div>
-                
+                <script>
+                    function setKurirTelp(select) {
+                        var telp = select.options[select.selectedIndex].getAttribute('data-telp');
+                        document.getElementById('telpon_kurir').value = telp || '';
+                    }
+                </script>
+                <!-- /Pilih Kurir -->
+
                 <div class="form-group">
                     <label for="bukti_foto">Bukti Foto</label>
                     <input type="file" class="form-control" id="bukti_foto" name="bukti_foto" 
                            accept="image/*" capture="camera">
-                    <small class="text-muted">Format: JPG, PNG, JPEG</small>
+                    <small class="text-muted">Format: JPG, PNG, JPEG. (Opsional)</small>
                     @error('bukti_foto')
                         <div class="text-danger">{{ $message }}</div>
                     @enderror

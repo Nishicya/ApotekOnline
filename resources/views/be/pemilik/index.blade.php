@@ -174,7 +174,7 @@
                 <div class="card h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5>5 Obat Terlaris</h5>
-                        <a href="{{ route('daftarobat.index') }}" class="btn btn-sm btn-primary">Lihat Semua</a>
+                        <a href="{{ route('daftarobatpemilik.index') }}" class="btn btn-sm btn-primary">Lihat Semua</a>
                     </div>
                     <div class="card-body">
                         <ul class="list-group list-group-flush">
@@ -183,7 +183,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <strong>{{ $obat->nama_obat }}</strong>
-                                        <div class="text-muted small">{{ $obat->jenisObat->nama_jenis ?? '-' }}</div>
+                                        <div class="text-muted small">{{ $obat->jenisObat->jenis ?? '-' }}</div>
                                     </div>
                                     <div class="text-end">
                                         <span class="badge bg-primary rounded-pill">{{ $obat->total_terjual }} Terjual</span>
@@ -210,8 +210,8 @@
                             <li class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <strong>ID: {{ $penjualan->id }}</strong>
-                                        <div class="text-muted small">{{ $penjualan->pelanggan->nama ?? 'Guest' }}</div>
+                                        <strong>Nama Pelanggan: {{ $penjualan->pelanggan->nama_pelanggan ?? 'Guest' }}</strong>
+                                        <div class="text-muted small">{{ $penjualan->id  }}</div>
                                     </div>
                                     <div class="text-end">
                                         <span class="text-success">Rp {{ number_format($penjualan->total_bayar, 0, ',', '.') }}</span>

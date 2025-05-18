@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('id_metode_bayar');
             $table->date('tgl_penjualan');
             $table->string('url_resep')->nullable();
-            $table->double('ongkos_kirim');
+            $table->double('ongkos_kirim')->nullable()->default(0);
             $table->double('biaya_app');
             $table->double('total_bayar');
             $table->enum('status_order', ['Menunggu Konfirmasi', 'Diproses', 'Menunggu Kurir', 'Dibatalkan Pembeli', 'Dibatalkan Penjual', 'Bermasalah', 'Selesai']);

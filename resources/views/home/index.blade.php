@@ -43,34 +43,52 @@
                         <!-- tab -->
                         <div id="tab1" class="tab-pane active">
                             <div class="products-slick" data-nav="#slick-nav-1">
-                                @foreach($obats->sortByDesc('created_at')->take(5) as $obat)
+                                @foreach($obats as $obat)
                                 <!-- product -->
-                                <div class="product">
-                                    <div class="product-img">
-                                        <img src="{{ asset('storage/' . $obat->foto1) }}" alt="{{ $obat->nama_obat }}">
-                                        @if($obat->created_at->diffInDays(now()) < 7)
+                                <div class="col-md-4 col-xs-6">
+                                    <div class="product">
+                                        <div class="product-img">
+                                            <img src="{{ asset('storage/' . $obat->foto1) }}" alt="{{ $obat->nama_obat }}">
                                             <div class="product-label">
-                                                <span class="new">NEW</span>
+                                                @if($obat->stok <= 0)
+                                                    <span class="sale">SOLD OUT</span>
+                                                @elseif(now()->diffInDays($obat->created_at) <= 7)
+                                                    <span class="new">NEW</span>
+                                                @endif
                                             </div>
-                                        @endif
-                                    </div>
-                                    <div class="product-body">
-                                        <p class="product-category">{{ $obat->jenisObat->nama_jenis }}</p>
-                                        <h3 class="product-name"><a href="#">{{ $obat->nama_obat }}</a></h3>
-                                        <h4 class="product-price">Rp {{ number_format($obat->harga_jual, 0, ',', '.') }}</h4>
-                                        <div class="product-rating">
-                                            @for($i = 0; $i < 5; $i++)
-                                                <i class="fa fa-star{{ $i < 4 ? '' : '-o' }}"></i>
-                                            @endfor
                                         </div>
-                                        <div class="product-btns">
-                                            <button class="add-to-wishlist"><i class="fa fa-heart-o"></i><span class="tooltipp">add to wishlist</span></button>
-                                            <button class="add-to-compare"><i class="fa fa-exchange"></i><span class="tooltipp">add to compare</span></button>
-                                            <button class="quick-view"><i class="fa fa-eye"></i><span class="tooltipp">quick view</span></button>
+                                        <div class="product-body">
+                                            <p class="product-category">{{ $obat->jenisObat->jenis }}</p>
+                                            <h3 class="product-name"><a href="{{ route('product.detail', $obat->id) }}">{{ $obat->nama_obat }}</a></h3>
+                                            <h4 class="product-price">Rp{{ number_format($obat->harga_jual, 0, ',', '.') }}</h4>
+                                            <div class="product-rating">
+                                                @for($i = 1; $i <= 5; $i++)
+                                                    @if($i <= 4)
+                                                        <i class="fa fa-star"></i>
+                                                    @else
+                                                        <i class="fa fa-star-o"></i>
+                                                    @endif
+                                                @endfor
+                                            </div>
+                                            <small>Sold: {{ $obat->total_sold ?? 0 }}</small>
                                         </div>
-                                    </div>
-                                    <div class="add-to-cart">
-                                        <button class="add-to-cart-btn"><i class="fa fa-shopping-cart"></i> add to cart</button>
+                                        <div class="add-to-cart">
+                                            @if($obat->stok > 0)
+                                                @auth('pelanggan')
+                                                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ $obat->id }}">
+                                                        <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
+                                                    </button>
+                                                @else
+                                                    <button class="btn btn-primary" onclick="showLoginAlert()">
+                                                        <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
+                                                    </button>
+                                                @endauth
+                                            @else
+                                                <button class="btn btn-secondary" disabled>
+                                                    <i class="fa fa-times-circle"></i> Stok Habis
+                                                </button>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                                 <!-- /product -->
@@ -148,32 +166,50 @@
                                     return $obat->detailPenjualans->sum('jumlah');
                                 })->take(4) as $obat)
                                 <!-- product -->
-                                <div class="product">
-                                    <div class="product-img">
-                                        <img src="{{ asset('storage/' . $obat->foto1) }}" alt="{{ $obat->nama_obat }}">
-                                        @if($obat->detailPenjualans->sum('jumlah') > 50)
+                                <div class="col-md-4 col-xs-6">
+                                    <div class="product">
+                                        <div class="product-img">
+                                            <img src="{{ asset('storage/' . $obat->foto1) }}" alt="{{ $obat->nama_obat }}">
                                             <div class="product-label">
-                                                <span class="sale">HOT</span>
+                                                @if($obat->stok <= 0)
+                                                    <span class="sale">SOLD OUT</span>
+                                                @elseif(now()->diffInDays($obat->created_at) <= 7)
+                                                    <span class="new">NEW</span>
+                                                @endif
                                             </div>
-                                        @endif
-                                    </div>
-                                    <div class="product-body">
-                                        <p class="product-category">{{ $obat->jenisObat->nama_jenis }}</p>
-                                        <h3 class="product-name"><a href="#">{{ $obat->nama_obat }}</a></h3>
-                                        <h4 class="product-price">Rp {{ number_format($obat->harga_jual, 0, ',', '.') }}</h4>
-                                        <div class="product-rating">
-                                            @for($i = 0; $i < 5; $i++)
-                                                <i class="fa fa-star{{ $i < 4 ? '' : '-o' }}"></i>
-                                            @endfor
                                         </div>
-                                        <div class="product-btns">
-                                            <button class="add-to-wishlist"><i class="fa fa-heart-o"></i><span class="tooltipp">add to wishlist</span></button>
-                                            <button class="add-to-compare"><i class="fa fa-exchange"></i><span class="tooltipp">add to compare</span></button>
-                                            <button class="quick-view"><i class="fa fa-eye"></i><span class="tooltipp">quick view</span></button>
+                                        <div class="product-body">
+                                            <p class="product-category">{{ $obat->jenisObat->jenis }}</p>
+                                            <h3 class="product-name"><a href="{{ route('product.detail', $obat->id) }}">{{ $obat->nama_obat }}</a></h3>
+                                            <h4 class="product-price">Rp{{ number_format($obat->harga_jual, 0, ',', '.') }}</h4>
+                                            <div class="product-rating">
+                                                @for($i = 1; $i <= 5; $i++)
+                                                    @if($i <= 4)
+                                                        <i class="fa fa-star"></i>
+                                                    @else
+                                                        <i class="fa fa-star-o"></i>
+                                                    @endif
+                                                @endfor
+                                            </div>
+                                            <small>Sold: {{ $obat->total_sold ?? 0 }}</small>
                                         </div>
-                                    </div>
-                                    <div class="add-to-cart">
-                                        <button class="add-to-cart-btn"><i class="fa fa-shopping-cart"></i> add to cart</button>
+                                        <div class="add-to-cart">
+                                            @if($obat->stok > 0)
+                                                @auth('pelanggan')
+                                                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ $obat->id }}">
+                                                        <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
+                                                    </button>
+                                                @else
+                                                    <button class="btn btn-primary" onclick="showLoginAlert()">
+                                                        <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
+                                                    </button>
+                                                @endauth
+                                            @else
+                                                <button class="btn btn-secondary" disabled>
+                                                    <i class="fa fa-times-circle"></i> Stok Habis
+                                                </button>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                                 <!-- /product -->
@@ -351,6 +387,140 @@
     </div>
     <!-- /container -->
 </div>
+<!-- /SECTION -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+$(document).ready(function() {
+    // Use event delegation for dynamically loaded elements
+    $(document).on('click', '.add-to-cart-btn', function(e) {
+        e.preventDefault();
+        let button = $(this);
+        let productId = button.data('product-id');
+        let quantity = 1;
+
+        // Change button state during loading
+        button.prop('disabled', true);
+        button.addClass('btn-loading');
+        button.find('.btn-text').text('Menambahkan...');
+
+        $.ajax({
+            url: '{{ route("keranjang.add") }}',
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                id_obat: productId,
+                quantity: quantity
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Update cart count in navbar
+                    $('.cart-count').text(response.cart_count);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: response.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: response.message
+                    });
+
+                    if (response.login_required) {
+                        setTimeout(() => {
+                            window.location.href = '{{ route("signin") }}';
+                        }, 2000);
+                    }
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorMessage
+                });
+            },
+            complete: function() {
+                button.prop('disabled', false);
+                button.removeClass('btn-loading');
+                button.find('.btn-text').text('Add to Cart');
+            }
+        });
+    });
+
+    // Define the login alert function
+    window.showLoginAlert = function() {
+        Swal.fire({
+            icon: 'info',
+            title: 'Login Required',
+            text: 'Anda harus login terlebih dahulu untuk menambahkan produk ke keranjang',
+            confirmButtonText: 'Login',
+            showCancelButton: true,
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '{{ route("signin") }}';
+            }
+        });
+    };
+});
+</script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<style>
+    .product-size {
+        margin: 5px 0;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .product-size span {
+        display: inline-block;
+        padding: 2px 5px;
+        background: #f5f5f5;
+        border-radius: 3px;
+    }
+
+    .product-label .sale {
+        background-color: #f64747; /* Warna merah untuk SOLD OUT */
+    }
+
+    .product-label .new {
+        background-color: #2ecc71; /* Warna hijau untuk NEW */
+    }
+    
+    .add-to-cart-btn {
+        pointer-events: auto !important;
+    }
+
+    .btn-loading {
+    position: relative;
+    }
+    .btn-loading:after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin: -8px 0 0 -8px;
+        width: 16px;
+        height: 16px;
+        border: 2px solid transparent;
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
 @endsection
 
 @section('newsletter')

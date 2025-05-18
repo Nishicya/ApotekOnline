@@ -7,15 +7,11 @@
 <div class="container-fluid">
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Detail Penjualan #{{ $penjualan->no_nota }}</h6>
+            <h6 class="m-0 font-weight-bold text-primary">Detail Penjualan #{{ $penjualan->id }}</h6>
         </div>
         <div class="card-body">
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <div class="form-group">
-                        <label><strong>No. Nota:</strong></label>
-                        <p>{{ $penjualan->no_nota }}</p>
-                    </div>
                     <div class="form-group">
                         <label><strong>Tanggal Penjualan:</strong></label>
                         <p>{{ $penjualan->tgl_penjualan }}</p>
@@ -32,9 +28,6 @@
                     <div class="form-group">
                         <label><strong>Metode Pembayaran:</strong></label>
                         <p>
-                            @if($penjualan->metodeBayar->url_logo)
-                                <img src="{{ asset('storage/'.$penjualan->metodeBayar->url_logo) }}" alt="Logo" style="height: 20px; margin-right: 10px;">
-                            @endif
                             {{ $penjualan->metodeBayar->metode_pembayaran }}
                         </p>
                     </div>
@@ -113,13 +106,13 @@
 
             <div class="mt-4">
                 @if(auth()->user()->role == 'pemilik')
-                <a href="{{ route('laporanpenjualan.index') }}" class="btn btn-secondary">
+                <a href="{{ route('laporanpenjualan.manage') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Kembali ke Daftar Penjualan
                 </a>
                 @endif
 
                 @if(auth()->user()->role !== 'pemilik')
-                <a href="{{ route('penjualan.index') }}" class="btn btn-secondary">
+                <a href="{{ route('penjualan.manage') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Kembali ke Daftar Penjualan
                 </a>
                 @endif
