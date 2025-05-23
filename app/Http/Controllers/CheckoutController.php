@@ -277,6 +277,7 @@ class CheckoutController extends Controller
             'status_order' => $statusMap[$transaction] ?? 'pending',
             'keterangan_status' => 'Status Midtrans: ' . $transaction
         ]);
+        
 
         return response()->json(['status' => 'success']);
     }

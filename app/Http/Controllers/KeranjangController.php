@@ -269,7 +269,7 @@ class KeranjangController extends Controller
 
     protected function isMidtransPayment($methodId)
     {
-        return $this->midtransMethod && $this->midtransMethod->id == $methodId;
+       return $this->midtransMethod && $methodId == $this->midtransMethod->id;
     }
 
     protected function processMidtransPayment($order, $items, $shippingCost, $biayaApp)
@@ -278,9 +278,10 @@ class KeranjangController extends Controller
 
         $params = [
             'transaction_details' => [
-                'id_penjualan' => 'ORDER-'.$order->id.'-'.time(),
+                'order_id' => 'ORDER-'.$order->id.'-'.time(),
                 'gross_amount' => $order->total_bayar
             ],
+
             'customer_details' => [
                 'first_name' => $customer->nama,
                 'email' => $customer->email,
