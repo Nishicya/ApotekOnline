@@ -244,7 +244,7 @@ class KeranjangController extends Controller
             return redirect()->route('keranjang')->with('error', 'Keranjang kosong');
         }
 
-        return view('checkout.finish', [
+        return view('checkout.index', [
             'pelanggan' => auth('pelanggan')->user(),
             'keranjangItems' => $cartItems,
             'metodeBayar' => MetodeBayar::all(),
@@ -297,7 +297,7 @@ class KeranjangController extends Controller
                 'biaya_app' => $biayaApp,
                 'total_bayar' => $total,
                 'status_order' => 'Menunggu Pembayaran',
-                'keterangan_status' => 'Menunggu pembayaran',
+                'keterangan_status' => 'Menunggu Pembayaran',
                 'alamat_pengiriman' => $validated['alamat_pengiriman'],
                 'catatan' => $validated['catatan']
             ]);
@@ -323,9 +323,9 @@ class KeranjangController extends Controller
             Pengiriman::create([
                 'id_penjualan' => $order->id,
                 'no_invoice' => 'INV-' . $order->id . '-' . time(),
-                'status_kirim' => 'Menunggu Pembayaran',
+                'status_kirim' => 'Menunggu Konfirmasi',
                 'nama_kurir' => $jenisPengiriman->nama_dispatch ?? 'Belum ditentukan',
-                'keterangan' => 'Menunggu pembayaran dari pelanggan'
+                'keterangan' => 'Menunggu Konfirmasi dari Apoteker'
             ]);
 
             // Midtrans - Check for payment method

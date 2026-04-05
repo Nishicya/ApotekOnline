@@ -123,7 +123,7 @@
                 </div>
                 
                 <button type="submit" class="btn btn-primary me-2">Simpan Perubahan</button>
-                <a href="{{ route('pengiriman.index') }}" class="btn btn-light">Batal</a>
+                <a href="{{ route('daftarpengiriman.index') }}" class="btn btn-light">Batal</a>
             </form>
         </div>
     </div>

@@ -140,10 +140,10 @@ class CheckoutController extends Controller
             $pengiriman = Pengiriman::create([
                 'id_penjualan' => $penjualan->id,
                 'no_invoice' => 'INV-' . $penjualan->id . '-' . time(),
-                'status_kirim' => 'Menunggu Pembayaran',
+                'status_kirim' => 'Menunggu Konfirmasi',
                 'nama_kurir' => $jenisPengiriman->nama_dispatch ?? 'Belum ditentukan',
                 'telpon_kurir' => '',
-                'keterangan' => 'Menunggu pembayaran'
+                'keterangan' => 'Menunggu konfirmasi dari apoteker'
             ]);
 
             // Process payment
@@ -325,13 +325,8 @@ class CheckoutController extends Controller
                     'keterangan_status' => $statusData['message']
                 ]);
 
-                // Update shipping status if payment successful
-                if (in_array($mappedStatus, ['settlement', 'capture'])) {
-                    $penjualan->pengiriman()->update([
-                        'status_kirim' => 'Diproses',
-                        'keterangan' => 'Pesanan sedang diproses'
-                    ]);
-                }
+                // Keep pengiriman as 'Menunggu Konfirmasi' until admin confirms it
+                // Admin will confirm and assign kurir, then status becomes 'Sedang Dikirim'
             }
 
             // Get order items for display

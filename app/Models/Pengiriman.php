@@ -14,8 +14,10 @@ class Pengiriman extends Model
 
     protected $fillable = [
         'id_penjualan',
+        'id_kurir',
         'no_invoice',
         'tgl_kirim',
+        'tgl_konfirmasi',
         'tgl_tiba', 
         'status_kirim',
         'nama_kurir',
@@ -38,5 +40,13 @@ class Pengiriman extends Model
     public function jenisPengiriman(): BelongsTo
     {
         return $this->belongsTo(JenisPengiriman::class, 'id_jenis_kirim');
+    }
+
+    /**
+     * Get the kurir (User dengan role kurir)
+     */
+    public function kurir(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'id_kurir');
     }
 }

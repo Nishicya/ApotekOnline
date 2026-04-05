@@ -11,13 +11,6 @@
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">{{ $title }}</h4>
-                            @if(auth()->user()->role !== 'pemilik')
-                            <div class="d-flex justify-content-start mb-3">
-                                <a href="{{ route('pengiriman.create') }}" class="btn btn-primary rounded-pill">
-                                    <i class="fas fa-plus-circle me-2"></i>Tambah Pengiriman
-                                </a>
-                            </div>
-                            @endif
                             @if(session('success'))
                                 <div class="alert alert-success alert-dismissible fade show">
                                     {{ session('success') }}
@@ -34,13 +27,10 @@
                                             <th>No</th>
                                             <th>No. Invoice</th>
                                             <th>Penjualan</th>
-                                            <th>Tanggal Kirim</th>
-                                            <th>Tanggal Tiba</th>
                                             <th>Status</th>
                                             <th>Kurir</th>
-                                            @if(auth()->user()->role !== 'pemilik')
+                                            <th>Kontak</th>
                                             <th>Aksi</th>
-                                            @endif
                                         </tr>
                                     </thead>
                                     <tbody> 
@@ -49,70 +39,106 @@
                                             <td>{{ $nmr + 1 }}.</td>
                                             <td>{{ $item->no_invoice }}</td>
                                             <td>Penjualan #{{ $item->penjualan->id }}</td>
-                                            <td>{{ Carbon\Carbon::parse($item->tgl_kirim)->format('d/m/Y') }}</td>
-                                            <td>
-                                                @if($item->tgl_kirim)
-                                                    {{ Carbon\Carbon::parse($item->tgl_kirim)->addDays(2)->format('d/m/Y') }}
-                                                @else
-                                                    -
-                                                @endif
-                                            </td>
                                             <td>
                                                 <span class="badge rounded-pill 
-                                                    @if($item->status_kirim == 'Sedang Dikirim') bg-warning text-dark
+                                                    @if($item->status_kirim == 'Menunggu Konfirmasi') bg-warning text-dark
+                                                    @elseif($item->status_kirim == 'Sedang Dikirim') bg-info
                                                     @elseif($item->status_kirim == 'Tiba Di Tujuan') bg-success
+                                                    @elseif($item->status_kirim == 'Dibatalkan') bg-danger
                                                     @else bg-secondary @endif">
                                                     {{ $item->status_kirim }}
                                                 </span>
-                                                @if($item->penjualan && strtolower($item->penjualan->status_order) == 'selesai')
-                                                    <span class="badge rounded-pill bg-dark ms-1">Selesai</span>
+                                            </td>
+                                            <td>
+                                                @if($item->kurir)
+                                                    <strong>{{ $item->kurir->name }}</strong> ({{ $item->kurir->role }})
+                                                @else
+                                                    <span class="text-muted">-</span>
                                                 @endif
                                             </td>
-                                            <td>{{ $item->nama_kurir }} ({{ $item->telpon_kurir }})</td>
-                                            @if(auth()->user()->role !== 'pemilik')
                                             <td>
-                                                <div class="btn-group" role="group">
-                                                    <a href="{{ route('pengiriman.edit', $item->id) }}" class="btn btn-light btn-sm rounded-pill me-2">
-                                                        <i class="fas fa-edit me-1"></i> Edit
-                                                    </a>
-                                                    <form action="{{ route('pengiriman.destroy', $item->id) }}" method="POST" class="d-inline">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-danger btn-sm rounded-pill" onclick="return confirm('Apakah Anda yakin ingin menghapus?')">
-                                                            <i class="fas fa-trash-alt me-1"></i> Hapus
-                                                        </button>
-                                                    </form>
-                                                    @if($item->penjualan && $item->penjualan->status_order == 'Menunggu Kurir')
-                                                        <button type="button" class="btn btn-success btn-sm rounded-pill ms-2" data-bs-toggle="modal" data-bs-target="#konfirmasiKurirModal{{ $item->id }}">
-                                                            <i class="fas fa-check-circle me-1"></i> Konfirmasi Kurir
-                                                        </button>
-                                                        <!-- Modal -->
-                                                        <div class="modal fade" id="konfirmasiKurirModal{{ $item->id }}" tabindex="-1" aria-labelledby="konfirmasiKurirModalLabel{{ $item->id }}" aria-hidden="true">
-                                                          <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                              <form action="{{ route('pengiriman.konfirmasiKurir', $item->id) }}" method="POST">
-                                                                @csrf
-                                                                @method('PUT')
-                                                                <div class="modal-header">
-                                                                  <h5 class="modal-title" id="konfirmasiKurirModalLabel{{ $item->id }}">Konfirmasi Kurir</h5>
-                                                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                  Apakah Anda yakin ingin mengkonfirmasi kurir untuk pengiriman ini? Status penjualan akan berubah menjadi <b>Diproses</b>.
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                                                                  <button type="submit" class="btn btn-success">Konfirmasi</button>
-                                                                </div>
-                                                              </form>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                    @endif
-                                                </div>
+                                                @if($item->kurir)
+                                                    {{ $item->kurir->no_hp ?? '-' }}
+                                                @else
+                                                    <span class="text-muted">-</span>
+                                                @endif
                                             </td>
-                                            @endif
+                                            <td>
+                                                @if($item->status_kirim == 'Menunggu Konfirmasi')
+                                                    <button type="button" class="btn btn-success btn-sm rounded-pill me-2" data-bs-toggle="modal" data-bs-target="#confirmModal{{ $item->id }}" title="Konfirmasi & Assign Kurir">
+                                                        <i class="fas fa-check-circle"></i> Konfirmasi
+                                                    </button>
+                                                @endif
+                                                
+                                                @if($item->status_kirim != 'Dibatalkan' && $item->status_kirim != 'Tiba Di Tujuan')
+                                                    <button type="button" class="btn btn-danger btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#cancelModal{{ $item->id }}" title="Batalkan Pengiriman">
+                                                        <i class="fas fa-times-circle"></i> Batalkan
+                                                    </button>
+                                                @endif
+                                            </td>
                                         </tr>
+
+                                        <!-- Confirm Modal -->
+                                        <div class="modal fade" id="confirmModal{{ $item->id }}" tabindex="-1" aria-labelledby="confirmModalLabel{{ $item->id }}" aria-hidden="true">
+                                          <div class="modal-dialog">
+                                            <div class="modal-content">
+                                              <form id="confirmForm{{ $item->id }}" action="{{ route('daftarpengiriman.confirm', $item->id) }}" method="POST" onsubmit="return validateConfirm(this, {{ $item->id }})">
+                                                @csrf
+                                                <div class="modal-header">
+                                                  <h5 class="modal-title" id="confirmModalLabel{{ $item->id }}">Konfirmasi Pengiriman & Pilih Kurir</h5>
+                                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                  <div class="mb-3">
+                                                    <label for="kurir{{ $item->id }}" class="form-label">Pilih Kurir</label>
+                                                    <select class="form-select" id="kurir{{ $item->id }}" name="id_kurir" required>
+                                                        <option value="">-- Pilih Kurir --</option>
+                                                        @php
+                                                            $kurirs = \App\Models\User::where('role', 'kurir')->where('name', 'like', '%' . \App\Models\JenisPengiriman::find($item->penjualan->id_jenis_kirim)?->jenis_kirim . '%')->get();
+                                                            if ($kurirs->isEmpty()) {
+                                                                $kurirs = \App\Models\User::where('role', 'kurir')->get();
+                                                            }
+                                                        @endphp
+                                                        @foreach($kurirs as $kurir)
+                                                            <option value="{{ $kurir->id }}">{{ $kurir->name }} - {{ $kurir->no_hp }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                  </div>
+                                                  <p class="small text-muted">Jenis Pengiriman: <strong>{{ $item->penjualan->jenisPengiriman->jenis_kirim ?? '-' }}</strong></p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                  <button type="submit" class="btn btn-success">Konfirmasi & Assign</button>
+                                                </div>
+                                              </form>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <!-- Cancel Modal -->
+                                        <div class="modal fade" id="cancelModal{{ $item->id }}" tabindex="-1" aria-labelledby="cancelModalLabel{{ $item->id }}" aria-hidden="true">
+                                          <div class="modal-dialog">
+                                            <div class="modal-content">
+                                              <form id="cancelForm{{ $item->id }}" action="{{ route('daftarpengiriman.cancel', $item->id) }}" method="POST" onsubmit="return validateCancel(this, {{ $item->id }})">
+                                                @csrf
+                                                <div class="modal-header">
+                                                  <h5 class="modal-title" id="cancelModalLabel{{ $item->id }}">Batalkan Pengiriman</h5>
+                                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                  <div class="mb-3">
+                                                    <label for="alasan{{ $item->id }}" class="form-label">Alasan Pembatalan</label>
+                                                    <textarea class="form-control" id="alasan{{ $item->id }}" name="alasan" rows="3" required placeholder="Masukkan alasan pembatalan..."></textarea>
+                                                  </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                  <button type="submit" class="btn btn-danger">Batalkan Pengiriman</button>
+                                                </div>
+                                              </form>
+                                            </div>
+                                          </div>
+                                        </div>
                                         @endforeach
                                     </tbody>
                                 </table>
@@ -141,4 +167,44 @@
         background-color: rgba(0, 0, 0, 0.02);
     }
 </style>
+@endsection
+
+@section('scripts')
+<script>
+function validateConfirm(form, itemId) {
+    const kurirSelect = document.getElementById('kurir' + itemId);
+    const selectedValue = kurirSelect.value;
+    
+    console.log('Confirm form submitted for item:', itemId);
+    console.log('Selected kurir ID:', selectedValue);
+    
+    if (!selectedValue || selectedValue === '') {
+        alert('Harap pilih kurir terlebih dahulu');
+        return false;
+    }
+    
+    console.log('Form action:', form.action);
+    console.log('Form method:', form.method);
+    console.log('Form data will be submitted');
+    return true;
+}
+
+function validateCancel(form, itemId) {
+    const alasanTextarea = document.getElementById('alasan' + itemId);
+    const alasan = alasanTextarea.value.trim();
+    
+    console.log('Cancel form submitted for item:', itemId);
+    console.log('Cancellation reason:', alasan);
+    
+    if (!alasan || alasan === '') {
+        alert('Harap masukkan alasan pembatalan');
+        return false;
+    }
+    
+    console.log('Form action:', form.action);
+    console.log('Form method:', form.method);
+    console.log('Form data will be submitted');
+    return true;
+}
+</script>
 @endsection

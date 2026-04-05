@@ -13,6 +13,12 @@ class MetodeBayarSeeder extends Seeder
      */
     public function run()
     {
+        // Cek apakah data sudah ada, jika ada jangan insert lagi
+        if (DB::table('metode_bayars')->count() > 0) {
+            $this->command->info('Metode pembayaran sudah ada di database. Skip seeding.');
+            return;
+        }
+
         $metode_bayars = [
             [
                 'metode_pembayaran' => 'Midtrans',
@@ -34,5 +40,6 @@ class MetodeBayarSeeder extends Seeder
             ],
         ];
         DB::table('metode_bayars')->insert($metode_bayars);
+        $this->command->info('Metode pembayaran berhasil di-seed.');
     }
 }

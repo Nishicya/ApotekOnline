@@ -12,7 +12,7 @@ class PengirimanController extends Controller
 { 
     public function index()
     {
-        $pengiriman = Pengiriman::with('penjualan')->latest()->get();
+        $pengiriman = Pengiriman::with(['penjualan.jenisPengiriman', 'kurir'])->latest()->get();
 
         return view('be.pengiriman.index', [
             'title' => 'Pengiriman Management',
@@ -143,5 +143,91 @@ class PengirimanController extends Controller
             'title' => 'Detail Pengiriman',
             'pengiriman' => $pengiriman,
         ]);
+    }
+
+    /**
+     * Confirm dan assign kurir ke pengiriman
+     */
+    public function confirm(Request $request, $id)
+    {
+        try {
+            \Log::info('Confirm pengiriman attempt', ['id' => $id, 'kurir_id' => $request->id_kurir]);
+            
+            $pengiriman = Pengiriman::findOrFail($id);
+
+            $validated = $request->validate([
+                'id_kurir' => 'required|exists:users,id',
+            ]);
+
+            \Log::info('Validation passed for confirm', ['validated' => $validated]);
+
+            $pengiriman->update([
+                'id_kurir' => $request->id_kurir,
+                'status_kirim' => 'Sedang Dikirim',
+                'tgl_konfirmasi' => now(),
+            ]);
+
+            \Log::info('Pengiriman updated successfully', ['pengiriman' => $pengiriman->toArray()]);
+
+            // Update penjualan status
+            if ($pengiriman->penjualan) {
+                $pengiriman->penjualan->update([
+                    'status_order' => 'Diproses',
+                    'keterangan_status' => 'Sedang dikirim'
+                ]);
+                \Log::info('Penjualan updated', ['penjualan' => $pengiriman->penjualan->toArray()]);
+            }
+
+            return redirect()->route('daftarpengiriman.index')->with('success', 'Pengiriman dikonfirmasi dan kurir ditugaskan.');
+        } catch (\Exception $e) {
+            \Log::error('Error confirming pengiriman: ' . $e->getMessage(), [
+                'id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->route('daftarpengiriman.index')->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Cancel pengiriman
+     */
+    public function cancel(Request $request, $id)
+    {
+        try {
+            \Log::info('Cancel pengiriman attempt', ['id' => $id, 'alasan' => $request->alasan]);
+            
+            $pengiriman = Pengiriman::findOrFail($id);
+
+            $validated = $request->validate([
+                'alasan' => 'required|string|max:255',
+            ]);
+
+            \Log::info('Validation passed for cancel', ['validated' => $validated]);
+
+            $pengiriman->update([
+                'status_kirim' => 'Dibatalkan',
+                'keterangan' => $request->alasan,
+            ]);
+
+            \Log::info('Pengiriman cancelled successfully', ['pengiriman' => $pengiriman->toArray()]);
+
+            // Update penjualan status
+            if ($pengiriman->penjualan) {
+                $pengiriman->penjualan->update([
+                    'status_order' => 'Dibatalkan',
+                    'keterangan_status' => 'Pengiriman dibatalkan: ' . $request->alasan
+                ]);
+                \Log::info('Penjualan cancelled', ['penjualan' => $pengiriman->penjualan->toArray()]);
+            }
+
+            return redirect()->route('daftarpengiriman.index')->with('success', 'Pengiriman dibatalkan.');
+        } catch (\Exception $e) {
+            \Log::error('Error cancelling pengiriman: ' . $e->getMessage(), [
+                'id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->route('daftarpengiriman.index')->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
     }
 }
