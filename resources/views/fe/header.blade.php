@@ -7,7 +7,7 @@
             <div class="col-md-3">
                 <div class="header-logo">
                     <a href="/home" class="logo">
-                        <img src="{{ asset('fe/img/logo.png') }}" alt="">
+                        <img src="{{ asset('fe/assets/img/logo.png') }}" alt="">
                     </a>
                 </div>
             </div>
@@ -65,9 +65,6 @@
                                                     Rp{{ number_format($item->harga, 0, ',', '.') }}
                                                 </h4>
                                             </div>
-                                            <button class="delete" onclick="removeFromCart({{ $item->id }})">
-                                                <i class="fa fa-close"></i>
-                                            </button>
                                         </div>
                                     @empty
                                         <div class="empty-cart-message">
@@ -141,7 +138,7 @@
 
                     <!-- Menu Toogle -->
                     <div class="menu-toggle">
-                        <a href="#">
+                        <a href="{{ route('home') }}">
                             <i class="fa fa-bars"></i>
                             <span>Menu</span>
                         </a>
@@ -157,6 +154,89 @@
 </div>
 @push('scripts')
 <script>
+    let cartUpdateInProgress = false;
+    
+    // Update cart dropdown dari server
+    function updateCartDropdown() {
+        if (cartUpdateInProgress) {
+            return; // Prevent overlapping requests
+        }
+        
+        cartUpdateInProgress = true;
+        console.log('[Cart] Fetching cart items...');
+        
+        $.ajax({
+            url: '/api/keranjang/items',
+            method: 'GET',
+            dataType: 'json',
+            timeout: 5000,
+            success: function(data) {
+                console.log('[Cart] Got response:', data.count, 'items');
+                if (data.success && data.items !== undefined) {
+                    updateCartUI(data);
+                }
+                cartUpdateInProgress = false;
+            },
+            error: function(xhr, status, error) {
+                console.error('[Cart] Fetch error:', status);
+                cartUpdateInProgress = false;
+            }
+        });
+    }
+    
+    // Update cart UI dengan data terbaru
+    function updateCartUI(cartData) {
+        let cartListHtml = '';
+        let totalSubtotal = 0;
+        let itemCount = cartData.items.length || 0;
+        
+        console.log('[Cart] Updating UI with', itemCount, 'items');
+        
+        if (itemCount > 0) {
+            cartData.items.forEach(function(item) {
+                if (!item || !item.obat) return;
+                
+                totalSubtotal += parseFloat(item.subtotal || 0);
+                const itemName = item.obat.nama_obat || 'Unknown';
+                const itemPrice = parseFloat(item.harga || 0).toLocaleString('id-ID');
+                const itemQty = item.jumlah_order || 1;
+                const itemImg = item.obat.foto1 || 'default.png';
+                const itemId = item.obat.id || '#';
+                
+                cartListHtml += `
+                    <div class="product-widget">
+                        <div class="product-img">
+                            <img src="/storage/${itemImg}" alt="${itemName}" 
+                                 onerror="this.src='/be/images/default-product.png';">
+                        </div>
+                        <div class="product-body">
+                            <h3 class="product-name">
+                                <a href="/product/${itemId}">${itemName}</a>
+                            </h3>
+                            <h4 class="product-price">
+                                <span class="qty">${itemQty}x</span>
+                                Rp${itemPrice}
+                            </h4>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            $('.cart-list').html(cartListHtml);
+            $('.cart-summary').html(`<small>${itemCount} Item(s) selected</small><h5>SUBTOTAL: Rp${totalSubtotal.toLocaleString('id-ID')}</h5>`).show();
+            $('.cart-btns').show();
+        } else {
+            cartListHtml = `<div class="empty-cart-message"><p>Keranjang belanja kosong</p></div>`;
+            $('.cart-list').html(cartListHtml);
+            $('.cart-summary').hide();
+            $('.cart-btns').hide();
+        }
+        
+        // Update count
+        $('.keranjang-count').text(itemCount).show();
+        console.log('[Cart] UI updated successfully');
+    }
+    
     function removeFromCart(cartId) {
         Swal.fire({
             title: 'Hapus dari keranjang?',
@@ -171,24 +251,33 @@
                 $.ajax({
                     url: '/keranjang/remove/' + cartId,
                     method: 'DELETE',
-                    data: {
-                        _token: '{{ csrf_token() }}'
-                    },
+                    data: { _token: '{{ csrf_token() }}' },
                     success: function(response) {
                         if(response.success) {
-                            Swal.fire(
-                                'Dihapus!',
-                                'Produk telah dihapus dari keranjang.',
-                                'success'
-                            ).then(() => {
-                                location.reload();
-                            });
+                            Swal.fire('Dihapus!', 'Produk telah dihapus dari keranjang.', 'success');
+                            updateCartDropdown();
                         }
+                    },
+                    error: function() {
+                        Swal.fire('Error!', 'Terjadi kesalahan.', 'error');
                     }
                 });
             }
         });
     }
+    
+    // ===== TAMBAHAN: Event listener untuk dropdown cart =====
+    $(document).ready(function() {
+        // Saat dropdown cart dibuka, langsung fetch data terbaru
+        $(document).on('show.bs.dropdown', function(e) {
+            var $target = $(e.target);
+            // Cek apakah ini dropdown cart
+            if ($target.find('.cart-dropdown').length) {
+                console.log('[Cart] Dropdown opened - updating cart');
+                updateCartDropdown();
+            }
+        });
+    });
 </script>
 @endpush
 

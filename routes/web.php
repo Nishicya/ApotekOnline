@@ -42,16 +42,21 @@ Route::get('/product/{id}', [App\Http\Controllers\ShopController::class, 'show']
 
 // ==================== Midtrans Routes ====================
 Route::post('/payment/callback', [MidtransController::class, 'handleCallback'])->name('payment.callback');
-Route::post('/checkout/process', [CheckoutController::class, 'processCheckout'])->name('checkout.process');
 Route::get('/payment/finish', [CheckoutController::class, 'paymentFinish'])->name('payment.finish');
 
 // Routes Keranjang
-Route::post('/keranjang/tambah', [KeranjangController::class, 'add'])->name('keranjang.add');
-Route::get('/keranjang', [App\Http\Controllers\KeranjangController::class, 'index'])->name('keranjang');
-Route::get('/keranjang/checkout', [App\Http\Controllers\KeranjangController::class, 'checkout'])->name('checkout');
-Route::post('/keranjang/checkout/process', [App\Http\Controllers\KeranjangController::class, 'processCheckout'])->name('checkout.process');
-Route::delete('/keranjang/remove/{id}', [App\Http\Controllers\KeranjangController::class, 'remove'])->name('keranjang.remove');
-Route::post('/keranjang/update/{id}', [App\Http\Controllers\KeranjangController::class, 'update'])->name('keranjang.update');
+Route::middleware('auth:pelanggan')->group(function () {
+    Route::post('/keranjang/tambah', [KeranjangController::class, 'add'])->name('keranjang.add');
+    Route::get('/keranjang', [App\Http\Controllers\KeranjangController::class, 'index'])->name('keranjang');
+    Route::get('/keranjang/checkout', [App\Http\Controllers\KeranjangController::class, 'checkout'])->name('checkout');
+    Route::post('/keranjang/checkout/process', [App\Http\Controllers\KeranjangController::class, 'processCheckout'])->name('checkout.process');
+    Route::post('/checkout/process', [CheckoutController::class, 'processCheckout'])->name('checkout.process.alt');
+    Route::delete('/keranjang/remove/{id}', [App\Http\Controllers\KeranjangController::class, 'remove'])->name('keranjang.remove');
+    Route::get('/api/keranjang/items', [App\Http\Controllers\KeranjangController::class, 'getCartItems'])->name('keranjang.items');
+});
+
+// Keranjang Update - tanpa auth untuk test
+Route::post('/keranjang/update/{id}', [App\Http\Controllers\KeranjangController::class, 'update'])->middleware('auth:pelanggan')->name('keranjang.update');
 
 // Auth User (Admin, Pemilik, Apoteker, Kasir, Karyawan)
 Route::get('/login', [App\Http\Controllers\AuthController::class, 'login'])->name('login');

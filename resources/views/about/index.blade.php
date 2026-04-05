@@ -1,5 +1,7 @@
 @extends('fe.master')
 
+@section('page_title', 'HEALTHIFY - About')
+
 @section('header')
     @include('fe.header')
 @endsection

@@ -1,5 +1,7 @@
 @extends('fe.master')
 
+@section('page_title', 'HEALTHIFY - Home')
+
 @section('header')
     @include('fe.header')
 @endsection
@@ -75,16 +77,16 @@
                                         <div class="add-to-cart">
                                             @if($obat->stok > 0)
                                                 @auth('pelanggan')
-                                                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ $obat->id }}">
+                                                    <button class="add-to-cart-btn" data-product-id="{{ $obat->id }}">
                                                         <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
                                                     </button>
                                                 @else
-                                                    <button class="btn btn-primary" onclick="showLoginAlert()">
+                                                    <button class="add-to-cart-btn" onclick="showLoginAlert()">
                                                         <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
                                                     </button>
                                                 @endauth
                                             @else
-                                                <button class="btn btn-secondary" disabled>
+                                                <button class="add-to-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
                                                     <i class="fa fa-times-circle"></i> Stok Habis
                                                 </button>
                                             @endif
@@ -196,16 +198,16 @@
                                         <div class="add-to-cart">
                                             @if($obat->stok > 0)
                                                 @auth('pelanggan')
-                                                    <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ $obat->id }}">
+                                                    <button class="add-to-cart-btn" data-product-id="{{ $obat->id }}">
                                                         <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
                                                     </button>
                                                 @else
-                                                    <button class="btn btn-primary" onclick="showLoginAlert()">
+                                                    <button class="add-to-cart-btn" onclick="showLoginAlert()">
                                                         <i class="fa fa-shopping-cart"></i> <span class="btn-text">Add to Cart</span>
                                                     </button>
                                                 @endauth
                                             @else
-                                                <button class="btn btn-secondary" disabled>
+                                                <button class="add-to-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
                                                     <i class="fa fa-times-circle"></i> Stok Habis
                                                 </button>
                                             @endif
@@ -388,90 +390,22 @@
     <!-- /container -->
 </div>
 <!-- /SECTION -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-$(document).ready(function() {
-    // Use event delegation for dynamically loaded elements
-    $(document).on('click', '.add-to-cart-btn', function(e) {
-        e.preventDefault();
-        let button = $(this);
-        let productId = button.data('product-id');
-        let quantity = 1;
-
-        // Change button state during loading
-        button.prop('disabled', true);
-        button.addClass('btn-loading');
-        button.find('.btn-text').text('Menambahkan...');
-
-        $.ajax({
-            url: '{{ route("keranjang.add") }}',
-            type: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                id_obat: productId,
-                quantity: quantity
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Update cart count in navbar
-                    $('.cart-count').text(response.cart_count);
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: response.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal',
-                        text: response.message
-                    });
-
-                    if (response.login_required) {
-                        setTimeout(() => {
-                            window.location.href = '{{ route("signin") }}';
-                        }, 2000);
-                    }
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                }
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: errorMessage
-                });
-            },
-            complete: function() {
-                button.prop('disabled', false);
-                button.removeClass('btn-loading');
-                button.find('.btn-text').text('Add to Cart');
-            }
-        });
+// Login alert function - called from blade when not logged in
+window.showLoginAlert = function() {
+    Swal.fire({
+        icon: 'info',
+        title: 'Login Required',
+        text: 'Anda harus login terlebih dahulu untuk menambahkan produk ke keranjang',
+        confirmButtonText: 'Login',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = '{{ route("signin") }}';
+        }
     });
-
-    // Define the login alert function
-    window.showLoginAlert = function() {
-        Swal.fire({
-            icon: 'info',
-            title: 'Login Required',
-            text: 'Anda harus login terlebih dahulu untuk menambahkan produk ke keranjang',
-            confirmButtonText: 'Login',
-            showCancelButton: true,
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = '{{ route("signin") }}';
-            }
-        });
-    };
-});
+};
 </script>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">

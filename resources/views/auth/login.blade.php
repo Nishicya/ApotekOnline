@@ -5,17 +5,17 @@
   <!-- Required meta tags -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Kapella Bootstrap Admin Dashboard Template</title>
+  <title>Login Dashboard</title>
   <!-- base:css -->
-  <link rel="stylesheet" href="{{ asset('be/vendors/mdi/css/materialdesignicons.min.css') }}">
-  <link rel="stylesheet" href="{{ asset('be/vendors/base/vendor.bundle.base.css') }}">
+  <link rel="stylesheet" href="{{ asset('be/assets/vendors/mdi/css/materialdesignicons.min.css') }}">
+  <link rel="stylesheet" href="{{ asset('be/assets/vendors/base/vendor.bundle.base.css') }}">
   <!-- endinject -->
   <!-- plugin css for this page -->
   <!-- End plugin css for this page -->
   <!-- inject:css -->
-  <link rel="stylesheet" href="{{ asset('be/css/style.css') }}">
+  <link rel="stylesheet" href="{{ asset('be/assets/css/style.css') }}">
   <!-- endinject -->
-  <link rel="shortcut icon" href="{{ asset('be/images/favicon.png') }}" />
+  <link rel="shortcut icon" href="{{ asset('be/assets/images/favicon.png') }}" />
 </head>
 
 <body>
@@ -27,7 +27,7 @@
             <div class="col-lg-4 mx-auto">
               <div class="auth-form-light text-left py-5 px-4 px-sm-5">
                 <div class="brand-logo">
-                  <img src="{{ asset('be/images/logo.svg') }}" alt="logo">
+                  <img src="{{ asset('be/assets/images/logo1.svg') }}" alt="logo">
                 </div>
                     <h4>Hello! let's get started</h4>
                     <h6 class="font-weight-light">Sign in to continue.</h6>
@@ -74,10 +74,10 @@
   </div>
   <!-- container-scroller -->
   <!-- base:js -->
-  <script src="{{ asset('be/vendors/base/vendor.bundle.base.js') }}"></script>
+  <script src="{{ asset('be/assets/vendors/base/vendor.bundle.base.js') }}"></script>
   <!-- endinject -->
   <!-- inject:js -->
-  <script src="{{ asset('be/js/template.js') }}"></script>
+  <script src="{{ asset('be/assets/js/template.js') }}"></script>
   <!-- endinject -->
 </body>
 

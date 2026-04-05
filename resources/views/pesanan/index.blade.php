@@ -1,5 +1,7 @@
 @extends('fe.master')
 
+@section('page_title', 'HEALTHIFY - Pesanan')
+
 @section('header')
     @include('fe.header')
 @endsection

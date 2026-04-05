@@ -66,47 +66,80 @@ class KeranjangController extends Controller
 
     public function add(Request $request)
     {
-        if (!auth('pelanggan')->check()) {
+        try {
+            if (!auth('pelanggan')->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda harus login terlebih dahulu',
+                    'login_required' => true
+                ], 401);
+            }
+
+            $validated = $request->validate([
+                'id_obat' => 'required|exists:obats,id',
+                'quantity' => 'required|integer|min:1'
+            ]);
+
+            $product = Obat::findOrFail($validated['id_obat']);
+
+            if ($product->stok < $validated['quantity']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stok tidak mencukupi. Stok tersedia: ' . $product->stok
+                ], 400);
+            }
+
+            $harga = $product->harga_jual;
+            
+            // Cek apakah produk sudah ada di keranjang
+            $existingItem = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
+                                    ->where('id_obat', $product->id)
+                                    ->first();
+
+            if ($existingItem) {
+                // Item sudah ada, tambahkan quantity
+                $newQuantity = $existingItem->jumlah_order + $validated['quantity'];
+                $newSubtotal = $newQuantity * $harga;
+                
+                $existingItem->update([
+                    'jumlah_order' => $newQuantity,
+                    'harga' => $harga,
+                    'subtotal' => $newSubtotal
+                ]);
+            } else {
+                // Item baru, create dengan subtotal yang dihitung
+                $subtotal = $validated['quantity'] * $harga;
+                
+                Keranjang::create([
+                    'id_pelanggan' => auth('pelanggan')->id(),
+                    'id_obat' => $product->id,
+                    'jumlah_order' => $validated['quantity'],
+                    'harga' => $harga,
+                    'subtotal' => $subtotal
+                ]);
+            }
+
+            // Hitung total item (bukan total quantity)
+            $cartCount = Keranjang::where('id_pelanggan', auth('pelanggan')->id())->count();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Produk berhasil ditambahkan',
+                'cart_count' => $cartCount
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Anda harus login terlebih dahulu',
-                'login_required' => true
-            ], 401);
-        }
-
-        $request->validate([
-            'id_obat' => 'required|exists:obats,id',
-            'quantity' => 'required|integer|min:1'
-        ]);
-
-        $product = Obat::findOrFail($request->id_obat);
-
-        if ($product->stok < $request->quantity) {
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Add to cart error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Stok tidak mencukupi. Stok tersedia: ' . $product->stok
-            ], 400);
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
-
-        $cartItem = Keranjang::updateOrCreate(
-            [
-                'id_pelanggan' => auth('pelanggan')->id(),
-                'id_obat' => $product->id
-            ],
-            [
-                'jumlah_order' => DB::raw('jumlah_order + ' . $request->quantity),
-                'harga' => $product->harga_jual,
-                'subtotal' => DB::raw('(jumlah_order + ' . $request->quantity . ') * ' . $product->harga_jual)
-            ]
-        );
-
-        $cartCount = Keranjang::where('id_pelanggan', auth('pelanggan')->id())->sum('jumlah_order');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Produk berhasil ditambahkan',
-            'cart_count' => $cartCount
-        ]);
     }
 
     public function update(Request $request, $id)
@@ -115,48 +148,73 @@ class KeranjangController extends Controller
             'quantity' => 'required|integer|min:1'
         ]);
 
-        $product = Obat::findOrFail($id);
+        // Cari keranjang by ID (bukan obat ID)
+        $cartItem = Keranjang::findOrFail($id);
+
+        // Validasi keranjang punya user yang login
+        if ($cartItem->id_pelanggan != auth('pelanggan')->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak'
+            ], 403);
+        }
+
+        // Cari produk untuk validasi stok
+        $product = Obat::findOrFail($cartItem->id_obat);
 
         if ($product->stok < $request->quantity) {
-            return back()->with('error', 'Stok tidak mencukupi');
+            return response()->json([
+                'success' => false,
+                'message' => 'Stok tidak mencukupi. Stok tersedia: ' . $product->stok
+            ], 400);
         }
 
-        if (auth('pelanggan')->check()) {
-            $cartItem = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
-                            ->where('id_obat', $id)
-                            ->firstOrFail();
+        // Gunakan harga dari obat untuk memastikan akurasi
+        $harga = $product->harga_jual;
+        $subtotal = $request->quantity * $harga;
 
-            $cartItem->update([
-                'jumlah_order' => $request->quantity,
-                'subtotal' => $request->quantity * $cartItem->harga
-            ]);
-        } else {
-            $cart = session()->get('cart', []);
-            if(isset($cart[$id])) {
-                $cart[$id]['quantity'] = $request->quantity;
-                session()->put('cart', $cart);
-            }
-        }
+        $cartItem->update([
+            'jumlah_order' => $request->quantity,
+            'harga' => $harga,
+            'subtotal' => $subtotal
+        ]);
 
-        return back()->with('success', 'Keranjang diperbarui');
+        // Hitung total keranjang
+        $totalItems = Keranjang::where('id_pelanggan', auth('pelanggan')->id())->count();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Keranjang diperbarui',
+            'subtotal' => $subtotal,
+            'formatted_subtotal' => 'Rp' . number_format($subtotal, 0, ',', '.'),
+            'cart_count' => $totalItems
+        ]);
     }
 
     public function remove(Request $request, $id)
     {
         if (auth('pelanggan')->check()) {
-            Keranjang::where('id_pelanggan', auth('pelanggan')->id())
-                    ->where('id_obat', $id)
+            // Delete keranjang item by keranjang id, not obat id
+            $deleted = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
+                    ->where('id', $id)
                     ->delete();
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => $deleted > 0,
+                    'message' => $deleted > 0 ? 'Produk dihapus' : 'Produk tidak ditemukan'
+                ]);
+            }
         } else {
             $cart = session()->get('cart', []);
             if(isset($cart[$id])) {
                 unset($cart[$id]);
                 session()->put('cart', $cart);
+                
+                if ($request->ajax()) {
+                    return response()->json(['success' => true]);
+                }
             }
-        }
-
-        if ($request->ajax()) {
-            return response()->json(['success' => true]);
         }
 
         return back()->with('success', 'Produk dihapus');
@@ -327,6 +385,38 @@ class KeranjangController extends Controller
         } catch (\Exception $e) {
             Log::error('Midtrans error: '.$e->getMessage());
             throw new \Exception('Gagal memproses pembayaran');
+        }
+    }
+
+    public function getCartItems()
+    {
+        try {
+            if (!auth('pelanggan')->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized',
+                    'items' => []
+                ], 401);
+            }
+
+            $cartItems = Keranjang::where('id_pelanggan', auth('pelanggan')->id())
+                        ->with('obat')
+                        ->latest()
+                        ->get();
+
+            return response()->json([
+                'success' => true,
+                'items' => $cartItems,
+                'count' => $cartItems->count(),
+                'total' => $cartItems->sum('subtotal')
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get cart items error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching cart items',
+                'items' => []
+            ], 500);
         }
     }
 
