@@ -15,22 +15,20 @@
     <div class="container">
         <div class="row">
             <div class="col-md-12 mb-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="section-title" style="margin: 0; font-weight: 700; color: #222;">Order Details</h2>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        @if($penjualan->pengiriman)
-                            <span class="badge" style="padding: 8px 16px; font-size: 13px; border-radius: 20px; font-weight: 600;
-                                @if($penjualan->pengiriman->status_kirim == 'Tiba Di Tujuan') background-color: #28a745; color: white;
-                                @elseif($penjualan->pengiriman->status_kirim == 'Sedang Dikirim') background-color: #FFC107; color: #333;
-                                @else background-color: #6c757d; color: white; @endif">
-                                {{ $penjualan->pengiriman->status_kirim }}
-                            </span>
-                        @endif
-                        <span class="badge" style="background-color: #D10024; color: white; padding: 8px 16px; font-size: 14px; border-radius: 20px; font-weight: 600;">
-                            {{ $penjualan->pengiriman->no_invoice ?? 'Pending' }}
+                <h2 class="section-title" style="margin: 0; font-weight: 700; color: #222; display: flex; align-items: center; gap: 15px;">
+                    Order Details
+                    @if($penjualan->pengiriman)
+                        <span class="badge" style="padding: 6px 12px; font-size: 12px; border-radius: 20px; font-weight: 600; margin: 0;
+                            @if($penjualan->pengiriman->status_kirim == 'Tiba Di Tujuan') background-color: #28a745; color: white;
+                            @elseif($penjualan->pengiriman->status_kirim == 'Sedang Dikirim') background-color: #FFC107; color: #333;
+                            @else background-color: #6c757d; color: white; @endif">
+                            {{ $penjualan->pengiriman->status_kirim }}
                         </span>
-                    </div>
-                </div>
+                    @endif
+                    <span class="badge" style="background-color: #D10024; color: white; padding: 6px 12px; font-size: 12px; border-radius: 20px; margin: 0; font-weight: 600;">
+                        {{ $penjualan->pengiriman->no_invoice ?? 'Pending' }}
+                    </span>
+                </h2>
             </div>
 
             <div class="col-md-12">

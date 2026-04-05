@@ -29,7 +29,7 @@ class CheckoutController extends Controller
 
     public function __construct()
     {
-        $this->middleware('auth:pelanggan');
+        // $this->middleware('auth:pelanggan');
         
         $this->midtransMethod = MetodeBayar::where('payment_gateway', 'midtrans')->first();
         
@@ -270,47 +270,79 @@ class CheckoutController extends Controller
 
     public function paymentFinish(Request $request)
     {
-        $orderId = $request->id_penjualan;
-        $status = $request->status;
-
         try {
-            $numericId = null;
-            if (preg_match('/ORDER-(\d+)-/', $orderId, $matches)) {
-                $numericId = $matches[1];
-            }
-
-            $penjualan = Penjualan::where('id_penjualan', $orderId)
-                ->when($numericId, function($query) use ($numericId) {
-                    $query->orWhere('id', $numericId);
-                })
-                ->firstOrFail();
-
-            $statusMap = [
-                'success' => ['status' => 'Diproses', 'message' => 'Pembayaran berhasil'],
-                'pending' => ['status' => 'Menunggu Pembayaran', 'message' => 'Menunggu pembayaran'],
-                'failed' => ['status' => 'Dibatalkan', 'message' => 'Pembayaran gagal'],
-                'expire' => ['status' => 'Dibatalkan', 'message' => 'Pembayaran kadaluarsa'],
-                'cancel' => ['status' => 'Dibatalkan', 'message' => 'Pesanan dibatalkan']
-            ];
-
-            $statusData = $statusMap[$status] ?? $statusMap['pending'];
+            $status_code = $request->query('status_code');
+            $transaction_status = $request->query('transaction_status');
             
-            $penjualan->update([
-                'status_order' => $statusData['status'],
-                'keterangan_status' => $statusData['message']
+            Log::info('Payment Finish Accessed', [
+                'status_code' => $status_code,
+                'transaction_status' => $transaction_status,
+                'url_params' => $request->query()
             ]);
 
-            // Update shipping status if payment successful
-            if ($status === 'success') {
-                $penjualan->pengiriman()->update([
-                    'status_kirim' => 'Diproses',
-                    'keterangan' => 'Pesanan sedang diproses'
+            // Map status
+            $statusMap = [
+                '200' => 'settlement',
+                '201' => 'pending',
+                '202' => 'deny',
+                '407' => 'expire',
+                '408' => 'cancel'
+            ];
+
+            $mappedStatus = $statusMap[$status_code] ?? $transaction_status ?? 'pending';
+            
+            // Get latest order for this customer
+            $penjualan = Penjualan::where('id_pelanggan', auth('pelanggan')->id() ?? auth()->id())
+                ->latest()
+                ->first();
+
+            if (!$penjualan) {
+                return view('checkout.finish', [
+                    'status' => 'error',
+                    'message' => 'Pesanan tidak ditemukan',
+                    'penjualan' => null,
+                    'keranjangItems' => collect([])
                 ]);
             }
 
+            // Update order status based on payment result
+            $statusDataMap = [
+                'settlement' => ['status' => 'Diproses', 'message' => 'Pembayaran berhasil diterima'],
+                'capture' => ['status' => 'Diproses', 'message' => 'Pembayaran berhasil diterima'],
+                'pending' => ['status' => 'Menunggu Pembayaran', 'message' => 'Menunggu konfirmasi pembayaran'],
+                'deny' => ['status' => 'Dibatalkan', 'message' => 'Pembayaran ditolak'],
+                'expire' => ['status' => 'Dibatalkan', 'message' => 'Pembayaran kadaluarsa'],
+                'cancel' => ['status' => 'Dibatalkan', 'message' => 'Pesanan dibatalkan'],
+                'error' => ['status' => 'Error', 'message' => 'Terjadi kesalahan dalam pembayaran']
+            ];
+
+            $statusData = $statusDataMap[$mappedStatus] ?? $statusDataMap['pending'];
+            
+            // Only update if status is different (to avoid duplicate updates)
+            if ($penjualan->status_order !== $statusData['status']) {
+                $penjualan->update([
+                    'status_order' => $statusData['status'],
+                    'keterangan_status' => $statusData['message']
+                ]);
+
+                // Update shipping status if payment successful
+                if (in_array($mappedStatus, ['settlement', 'capture'])) {
+                    $penjualan->pengiriman()->update([
+                        'status_kirim' => 'Diproses',
+                        'keterangan' => 'Pesanan sedang diproses'
+                    ]);
+                }
+            }
+
+            // Get order items for display
+            $keranjangItems = DetailPenjualan::where('id_penjualan', $penjualan->id)
+                ->with('obat')
+                ->get();
+
             return view('checkout.finish', [
-                'status' => $status,
+                'status' => $mappedStatus,
                 'penjualan' => $penjualan,
+                'keranjangItems' => $keranjangItems,
                 'message' => $statusData['message']
             ]);
 
@@ -318,7 +350,9 @@ class CheckoutController extends Controller
             Log::error('Payment finish error: ' . $e->getMessage());
             return view('checkout.finish', [
                 'status' => 'error',
-                'message' => 'Terjadi kesalahan saat memproses pesanan'
+                'message' => 'Terjadi kesalahan saat memproses pesanan: ' . $e->getMessage(),
+                'penjualan' => null,
+                'keranjangItems' => collect([])
             ]);
         }
     }

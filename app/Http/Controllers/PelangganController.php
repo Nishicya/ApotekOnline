@@ -296,6 +296,52 @@ class PelangganController extends Controller
         ]);
     }
 
+    // Batalkan pesanan
+    public function cancelPesanan(Request $request)
+    {
+        $pelanggan = Auth::guard('pelanggan')->user();
+        $penjualan_id = $request->input('penjualan_id');
+
+        $penjualan = \App\Models\Penjualan::where('id', $penjualan_id)
+            ->where('id_pelanggan', $pelanggan->id)
+            ->firstOrFail();
+
+        // Hanya bisa membatalkan pesanan dengan status "Menunggu Konfirmasi"
+        if ($penjualan->status_order !== 'Menunggu Konfirmasi') {
+            return back()->with('error', 'Pesanan tidak dapat dibatalkan karena statusnya sudah berubah!');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update status pesanan menjadi dibatalkan
+            $penjualan->update(['status_order' => 'Dibatalkan']);
+
+            // Kembalikan stok obat
+            foreach ($penjualan->detailPenjualans as $detail) {
+                $obat = \App\Models\Obat::find($detail->id_obat);
+                if ($obat) {
+                    $obat->increment('stok_obat', $detail->jumlah_beli);
+                }
+            }
+
+            // Hapus keranjang items yang related
+            \App\Models\Keranjang::where('id_pelanggan', $pelanggan->id)
+                ->whereIn('id', function ($query) use ($penjualan) {
+                    $query->select('id')->from('keranjangs')
+                        ->where('id_pelanggan', $penjualan->id_pelanggan);
+                })
+                ->delete();
+
+            DB::commit();
+
+            return redirect()->route('fe.pesanan')->with('success', 'Pesanan berhasil dibatalkan!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal membatalkan pesanan: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Show the form for creating a new resource.
      */

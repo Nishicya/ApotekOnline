@@ -50,7 +50,7 @@ Route::middleware('auth:pelanggan')->group(function () {
     Route::get('/keranjang', [App\Http\Controllers\KeranjangController::class, 'index'])->name('keranjang');
     Route::get('/keranjang/checkout', [App\Http\Controllers\KeranjangController::class, 'checkout'])->name('checkout');
     Route::post('/keranjang/checkout/process', [App\Http\Controllers\KeranjangController::class, 'processCheckout'])->name('checkout.process');
-    Route::post('/checkout/process', [CheckoutController::class, 'processCheckout'])->name('checkout.process.alt');
+    // Route::post('/checkout/process', [CheckoutController::class, 'processCheckout'])->name('checkout.process.alt');
     Route::delete('/keranjang/remove/{id}', [App\Http\Controllers\KeranjangController::class, 'remove'])->name('keranjang.remove');
     Route::get('/api/keranjang/items', [App\Http\Controllers\KeranjangController::class, 'getCartItems'])->name('keranjang.items');
 });
@@ -145,6 +145,7 @@ Route::middleware('auth:pelanggan')->group(function () {
     Route::get('/pesanan', [App\Http\Controllers\PelangganController::class, 'pesanan'])->name('fe.pesanan');
     Route::get('/pesanan/{id}', [App\Http\Controllers\PelangganController::class, 'showPesanan'])->name('fe.pesanan.show');
     Route::post('/pesanan/konfirmasi/{pengiriman}', [App\Http\Controllers\PelangganController::class, 'konfirmasiPesanan'])->name('fe.pesanan.konfirmasi');
+    Route::put('/pesanan/cancel', [App\Http\Controllers\PelangganController::class, 'cancelPesanan'])->name('pesanan.cancel');
 });
 
 // ==================== Profile User ====================

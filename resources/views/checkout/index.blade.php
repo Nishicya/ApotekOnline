@@ -175,17 +175,20 @@
             return;
         }
 
-        // Get all form data including selected payment method
-        const form = document.getElementById('checkout-form');
-        const formData = new FormData(form);
+        // Disable button to prevent double submission
+        const payButton = document.getElementById('pay-button');
+        payButton.disabled = true;
+        payButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
 
         try {
             const form = document.getElementById('checkout-form');
             const formData = new FormData(form);
+            
+            console.log('Sending checkout request...');
+
             const response = await fetch("{{ route('checkout.process') }}", {
                 method: 'POST',
-                headers:
-                {
+                headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Accept': 'application/json'
                 },
@@ -193,29 +196,45 @@
             });
 
             const data = await response.json();
+            
+            console.log('Checkout Response:', data);
 
             if (!response.ok) {
                 throw new Error(data.message || 'Terjadi kesalahan saat memproses pesanan');
             }
 
             if (data.snapToken) {
+                console.log('Snap Token received, opening payment gateway...');
                 snap.pay(data.snapToken, {
                     onSuccess: function(result) {
-                        window.location.href = `{{ route('payment.finish') }}?order_id=${result.order_id}&status_code=${result.status_code}&transaction_status=${result.transaction_status}`;
+                        console.log('Payment Success:', result);
+                        window.location.href = `{{ route('payment.finish') }}?status_code=${result.status_code}&transaction_status=${result.transaction_status}`;
                     },
                     onPending: function(result) {
-                        window.location.href = `{{ route('payment.finish') }}?order_id=${result.order_id}&status_code=${result.status_code}&transaction_status=${result.transaction_status}`;
+                        console.log('Payment Pending:', result);
+                        window.location.href = `{{ route('payment.finish') }}?status_code=${result.status_code}&transaction_status=${result.transaction_status}`;
                     },
                     onError: function(result) {
-                        window.location.href = `{{ route('payment.finish') }}?order_id=${result.order_id}&status_code=${result.status_code}&transaction_status=${result.transaction_status}`;
+                        console.log('Payment Error:', result);
+                        window.location.href = `{{ route('payment.finish') }}?status_code=${result.status_code}&transaction_status=${result.transaction_status}`;
+                    },
+                    onClose: function() {
+                        console.log('Payment dialog closed');
+                        payButton.disabled = false;
+                        payButton.innerHTML = '<i class="fa fa-credit-card"></i> Proses Pesanan';
                     }
                 });
             } else if (data.redirect) {
+                console.log('Redirect to:', data.redirect);
                 window.location.href = data.redirect;
+            } else {
+                throw new Error('Response tidak memiliki snapToken atau redirect');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert(error.message || 'Terjadi kesalahan saat memproses pesanan');
+            console.error('Checkout Error:', error);
+            alert('Terjadi kesalahan: ' + (error.message || 'Silakan coba lagi'));
+            payButton.disabled = false;
+            payButton.innerHTML = '<i class="fa fa-credit-card"></i> Proses Pesanan';
         }
     };
 

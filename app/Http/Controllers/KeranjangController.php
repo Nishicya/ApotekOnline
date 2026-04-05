@@ -26,10 +26,16 @@ class KeranjangController extends Controller
         $this->midtransMethod = MetodeBayar::where('payment_gateway', 'midtrans')->first();
         
         if ($this->midtransMethod) {
-            MidtransConfig::$serverKey = config('midtrans.serverKey');
-            MidtransConfig::$isProduction = config('midtrans.isProduction');
-            MidtransConfig::$isSanitized = true;
-            MidtransConfig::$is3ds = true;
+            MidtransConfig::$serverKey = config('midtrans.server_key');
+            MidtransConfig::$clientKey = config('midtrans.client_key');
+            MidtransConfig::$isProduction = config('midtrans.is_production', false);
+            MidtransConfig::$isSanitized = config('midtrans.is_sanitized', true);
+            MidtransConfig::$is3ds = config('midtrans.is_3ds', true);
+            
+            Log::info('Midtrans Config Loaded', [
+                'server_key_exists' => !empty(config('midtrans.server_key')),
+                'is_production' => MidtransConfig::$isProduction
+            ]);
         }
     }
 
@@ -238,7 +244,7 @@ class KeranjangController extends Controller
             return redirect()->route('keranjang')->with('error', 'Keranjang kosong');
         }
 
-        return view('checkout.index', [
+        return view('checkout.finish', [
             'pelanggan' => auth('pelanggan')->user(),
             'keranjangItems' => $cartItems,
             'metodeBayar' => MetodeBayar::all(),
@@ -259,6 +265,11 @@ class KeranjangController extends Controller
                 'catatan' => 'nullable|string|max:500',
                 'selected_items' => 'required|array|min:1',
                 'selected_items.*' => 'exists:keranjangs,id,id_pelanggan,'.auth('pelanggan')->id()
+            ]);
+
+            Log::info('Checkout Process Started', [
+                'id_metode_bayar' => $validated['id_metode_bayar'],
+                'midtrans_method_id' => $this->midtransMethod?->id
             ]);
 
             $cartItems = Keranjang::with('obat')
@@ -285,10 +296,13 @@ class KeranjangController extends Controller
                 'ongkos_kirim' => $shipping,
                 'biaya_app' => $biayaApp,
                 'total_bayar' => $total,
-                'status_order' => 'Menunggu Konfirmasi',
+                'status_order' => 'Menunggu Pembayaran',
+                'keterangan_status' => 'Menunggu pembayaran',
                 'alamat_pengiriman' => $validated['alamat_pengiriman'],
                 'catatan' => $validated['catatan']
             ]);
+
+            Log::info('Order Created', ['order_id' => $order->id]);
 
             // Order Items
             foreach ($cartItems as $item) {
@@ -304,22 +318,65 @@ class KeranjangController extends Controller
                 $item->delete();
             }
 
-            // Midtrans
-            if ($this->isMidtransPayment($validated['id_metode_bayar'])) {
-                $payment = $this->processMidtransPayment($order, $cartItems, $shipping, $biayaApp);
-                DB::commit();
-                return response()->json($payment);
-            }
-
-            DB::commit();
-            return response()->json([
-                'redirect' => route('orders.show', $order->id)
+            // Create Pengiriman record
+            $jenisPengiriman = JenisPengiriman::findOrFail($validated['id_jenis_kirim']);
+            Pengiriman::create([
+                'id_penjualan' => $order->id,
+                'no_invoice' => 'INV-' . $order->id . '-' . time(),
+                'status_kirim' => 'Menunggu Pembayaran',
+                'nama_kurir' => $jenisPengiriman->nama_dispatch ?? 'Belum ditentukan',
+                'keterangan' => 'Menunggu pembayaran dari pelanggan'
             ]);
 
+            // Midtrans - Check for payment method
+            Log::info('Checking payment method', [
+                'method_id' => $validated['id_metode_bayar'],
+                'is_midtrans' => $this->isMidtransPayment($validated['id_metode_bayar'])
+            ]);
+
+            if ($this->isMidtransPayment($validated['id_metode_bayar'])) {
+                Log::info('Processing Midtrans Payment');
+                try {
+                    $payment = $this->processMidtransPayment($order, $cartItems, $shipping, $biayaApp);
+                    DB::commit();
+                    Log::info('Midtrans Payment Processed Successfully', ['order_id' => $payment['order_id']]);
+                    return response()->json([
+                        'success' => true,
+                        'snapToken' => $payment['snapToken'],
+                        'order_id' => $payment['order_id']
+                    ]);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('Midtrans Payment Failed: ' . $e->getMessage());
+                    throw $e;
+                }
+            }
+
+            // Non-Midtrans payment - don't auto redirect
+            DB::commit();
+            Log::info('Non-Midtrans Payment - Order created successfully');
+            return response()->json([
+                'success' => true,
+                'message' => 'Pesanan berhasil dibuat. Silakan lanjutkan pembayaran.',
+                'redirect' => route('fe.pesanan.show', $order->id)
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors()
+            ], 422);
+            
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Checkout error: '.$e->getMessage());
+            Log::error('Checkout error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
+                'success' => false,
                 'message' => $e->getMessage()
             ], 500);
         }
@@ -332,61 +389,79 @@ class KeranjangController extends Controller
 
     protected function processMidtransPayment($order, $items, $shippingCost, $biayaApp)
     {
+        // ✅ Validasi config Midtrans
+        if (empty(config('midtrans.server_key'))) {
+            throw new \Exception('Konfigurasi Midtrans belum lengkap. Hubungi admin.');
+        }
+
         $customer = auth('pelanggan')->user();
+        $orderId = 'ORDER-'.$order->id.'-'.time(); // ✅ Simpan di variable
 
         $params = [
             'transaction_details' => [
-                'order_id' => 'ORDER-'.$order->id.'-'.time(),
-                'gross_amount' => $order->total_bayar
+                'order_id' => $orderId,
+                'gross_amount' => (int) $order->total_bayar // ✅ Cast ke integer
             ],
-
             'customer_details' => [
-                'first_name' => $customer->nama,
-                'email' => $customer->email,
-                'phone' => $customer->no_telp
+                'first_name' => substr($customer->nama, 0, 50),
+                'email' => substr($customer->email, 0, 50),
+                'phone' => substr($customer->no_telp ?? '08123456789', 0, 20),
             ],
             'item_details' => []
         ];
 
         foreach ($items as $item) {
             $params['item_details'][] = [
-                'id' => $item->id_obat,
-                'price' => $item->harga,
-                'quantity' => $item->jumlah_order,
-                'name' => $item->obat->nama_obat
+                'id' => (string) $item->id_obat, // ✅ Cast ke string
+                'price' => (int) $item->harga, // ✅ Cast ke integer
+                'quantity' => (int) $item->jumlah_order, // ✅ Cast ke integer
+                'name' => substr($item->obat->nama_obat, 0, 50) // ✅ Batasi 50 karakter
             ];
         }
 
         if ($shippingCost > 0) {
             $params['item_details'][] = [
                 'id' => 'SHIPPING',
-                'price' => $shippingCost,
+                'price' => (int) $shippingCost,
                 'quantity' => 1,
-                'name' => 'Ongkos Kirim'
+                'name' => 'Ongkir'
             ];
         }
 
-        // Tambah Biaya Aplikasi
         $params['item_details'][] = [
             'id' => 'APPFEE',
-            'price' => $biayaApp,
+            'price' => (int) $biayaApp,
             'quantity' => 1,
             'name' => 'Biaya Aplikasi'
         ];
 
         try {
+            Log::info('Midtrans Request Params', $params);
+            
             $snapToken = Snap::getSnapToken($params);
-            $order->update(['id_penjualan' => $params['transaction_details']['id_penjualan']]);
+            
+            Log::info('Midtrans Snap Token Generated', ['token' => $snapToken]);
+
+            // ✅ PERBAIKAN: Simpan midtrans_order_id ke field yang benar
+            // Asumsikan Anda punya field 'midtrans_order_id' di tabel penjualan
+            // Jika belum ada, buat migration untuk menambahkannya
+            
+            if (in_array('midtrans_order_id', $order->getFillable())) {
+                $order->update(['midtrans_order_id' => $orderId]);
+            }
 
             return [
                 'snapToken' => $snapToken,
-                'id_penjualan' => $params['transaction_details']['id_penjualan']
+                'order_id' => $orderId,
+                'id_penjualan' => $order->id // ✅ ID penjualan dari database
             ];
+            
         } catch (\Exception $e) {
             Log::error('Midtrans error: '.$e->getMessage());
-            throw new \Exception('Gagal memproses pembayaran');
+            throw new \Exception('Gagal memproses pembayaran: '.$e->getMessage());
         }
     }
+
 
     public function getCartItems()
     {

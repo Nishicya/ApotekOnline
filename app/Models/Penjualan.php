@@ -24,6 +24,9 @@ class Penjualan extends Model
         'keterangan_status',
         'id_jenis_kirim',
         'id_pelanggan',
+        'midtrans_order_id',
+        'alamat_pengiriman',
+        'catatan',
     ];
 
     // === RELASI ===
