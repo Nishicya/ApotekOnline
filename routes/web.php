@@ -108,13 +108,11 @@ Route::prefix('pemilik')->middleware(['auth', CheckRoleUser::class . ':pemilik']
     Route::get('/daftar-pelanggan', [PelangganManageController::class, 'index'])->name('daftarpelanggan.index');
     Route::get('/daftar-distributor', [DistributorController::class, 'index'])->name('daftardistributor.index');
     Route::get('/daftar-pengiriman', [PengirimanController::class, 'index'])->name('daftarpengiriman.index');
-
-    // Detail
-    Route::get('/detail-obat', [ObatController::class, 'show'])->name('daftarobat.show');
-    Route::get('/detail-penjualan', [PenjualanController::class, 'show'])->name('laporanpenjualan.show');
-    Route::get('/detail-pembelian/{id}', [PembelianController::class, 'show'])->name('laporanpembelian.show');
-    Route::get('/detail-distributor/{id}', [DistributorController::class, 'show'])->name('daftardistributor.show');
-    Route::get('/detail-pengiriman', [PengirimanController::class, 'show'])->name('daftarpengiriman.show');
+    Route::get('/daftar-pengiriman/{id}', [PengirimanController::class, 'show'])->name('daftarpengiriman.show');
+    Route::get('/daftar-pengiriman/{id}/edit', [PengirimanController::class, 'edit'])->name('daftarpengiriman.edit');
+    Route::put('/daftar-pengiriman/{id}', [PengirimanController::class, 'update'])->name('daftarpengiriman.update');
+    Route::post('/daftar-pengiriman/{id}/confirm', [PengirimanController::class, 'confirm'])->name('daftarpengiriman.confirm');
+    Route::post('/daftar-pengiriman/{id}/cancel', [PengirimanController::class, 'cancel'])->name('daftarpengiriman.cancel');
 });
 
 Route::prefix('apoteker')->middleware(['auth', CheckRoleUser::class . ':apoteker'])->group(function () {
@@ -272,6 +270,6 @@ Route::middleware(['auth', CheckRoleUser::class . ':karyawan,admin,pemilik'])->g
         'destroy' => 'jenis-pengiriman.destroy',
     ]);
 
-    Route::resource('detail-pengiriman', App\Http\Controllers\DetailPengirimanController::class);
+    // Route::resource('detail-pengiriman', App\Http\Controllers\DetailPengirimanController::class);
     Route::put('/pengiriman/{id}/konfirmasi-kurir', [PengirimanController::class, 'konfirmasiKurir'])->name('pengiriman.konfirmasiKurir');
 });
