@@ -134,30 +134,31 @@
         
         <!-- az-header-profile -->
         <div class="dropdown az-profile-menu">
-            <a href="" class="az-img-user">
+            <a href="#" class="az-img-user" data-bs-toggle="dropdown" aria-expanded="false">
                 @if($user && $user->foto)
                 <img src="{{ asset('storage/'.$user->foto) }}" alt="Profile Photo">
                 @else
                 <img src="{{ asset('images/default-user.jpg') }}" alt="">
                 @endif
             </a>
-        <div class="dropdown-menu">
-            <div class="az-dropdown-header d-sm-none">
-                <a href="" class="az-header-arrow"><i class="icon ion-md-arrow-back"></i></a>
-            </div>
-            <div class="az-header-profile">
-                <div class="az-img-user">
-                    @if($user && $user->foto)
-                    <img src="{{ asset('storage/'.$user->foto) }}" alt="Profile Photo">
-                    @else
-                    <img src="{{ asset('images/default-user.jpg') }}" alt="">
-                    @endif
+            <div class="dropdown-menu dropdown-menu-end">
+                <div class="az-dropdown-header d-sm-none">
+                    <a href="" class="az-header-arrow"><i class="icon ion-md-arrow-back"></i></a>
                 </div>
-                <h6>{{ $user->name }}</h6>
-                <span>{{ ucfirst($user->role) }}</span>
+                <div class="az-header-profile">
+                    <div class="az-img-user">
+                        @if($user && $user->foto)
+                        <img src="{{ asset('storage/'.$user->foto) }}" alt="Profile Photo">
+                        @else
+                        <img src="{{ asset('images/default-user.jpg') }}" alt="">
+                        @endif
+                    </div>
+                    <h6>{{ $user->name }}</h6>
+                    <span>{{ ucfirst($user->role) }}</span>
                 </div>
                 <a href="{{ route('be.profile') }}" class="dropdown-item"><i class="typcn typcn-user-outline"></i> My Profile</a>
                 <a href="{{ route('be.profile') }}" class="dropdown-item"><i class="typcn typcn-edit"></i> Edit Profile</a>
+                <hr class="dropdown-divider">
                 <form action="{{ route('logout') }}" method="POST">
                     @csrf
                     <button type="submit" class="dropdown-item">
@@ -166,7 +167,6 @@
                 </form>
             </div>
         </div>
-        <!-- az-header-profile -->
     </div>
     <!-- container -->
 </div>

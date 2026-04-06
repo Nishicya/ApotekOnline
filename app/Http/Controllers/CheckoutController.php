@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 
 class CheckoutController extends Controller
 {
-    protected $midtransMethod;
+    protected ?MetodeBayar $midtransMethod = null;
 
     private function validateMidtransConfig()
     {

@@ -7,6 +7,7 @@ use App\Models\Penjualan;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class PengirimanController extends Controller
 { 
@@ -151,7 +152,7 @@ class PengirimanController extends Controller
     public function confirm(Request $request, $id)
     {
         try {
-            \Log::info('Confirm pengiriman attempt', ['id' => $id, 'kurir_id' => $request->id_kurir]);
+            Log::info('Confirm pengiriman attempt', ['id' => $id, 'kurir_id' => $request->id_kurir]);
             
             $pengiriman = Pengiriman::findOrFail($id);
 
@@ -159,7 +160,7 @@ class PengirimanController extends Controller
                 'id_kurir' => 'required|exists:users,id',
             ]);
 
-            \Log::info('Validation passed for confirm', ['validated' => $validated]);
+            Log::info('Validation passed for confirm', ['validated' => $validated]);
 
             $pengiriman->update([
                 'id_kurir' => $request->id_kurir,
@@ -167,7 +168,7 @@ class PengirimanController extends Controller
                 'tgl_konfirmasi' => now(),
             ]);
 
-            \Log::info('Pengiriman updated successfully', ['pengiriman' => $pengiriman->toArray()]);
+            Log::info('Pengiriman updated successfully', ['pengiriman' => $pengiriman->toArray()]);
 
             // Update penjualan status
             if ($pengiriman->penjualan) {
@@ -175,12 +176,12 @@ class PengirimanController extends Controller
                     'status_order' => 'Diproses',
                     'keterangan_status' => 'Sedang dikirim'
                 ]);
-                \Log::info('Penjualan updated', ['penjualan' => $pengiriman->penjualan->toArray()]);
+                Log::info('Penjualan updated', ['penjualan' => $pengiriman->penjualan->toArray()]);
             }
 
             return redirect()->route('daftarpengiriman.index')->with('success', 'Pengiriman dikonfirmasi dan kurir ditugaskan.');
         } catch (\Exception $e) {
-            \Log::error('Error confirming pengiriman: ' . $e->getMessage(), [
+            Log::error('Error confirming pengiriman: ' . $e->getMessage(), [
                 'id' => $id,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -194,7 +195,7 @@ class PengirimanController extends Controller
     public function cancel(Request $request, $id)
     {
         try {
-            \Log::info('Cancel pengiriman attempt', ['id' => $id, 'alasan' => $request->alasan]);
+            Log::info('Cancel pengiriman attempt', ['id' => $id, 'alasan' => $request->alasan]);
             
             $pengiriman = Pengiriman::findOrFail($id);
 
@@ -202,14 +203,14 @@ class PengirimanController extends Controller
                 'alasan' => 'required|string|max:255',
             ]);
 
-            \Log::info('Validation passed for cancel', ['validated' => $validated]);
+            Log::info('Validation passed for cancel', ['validated' => $validated]);
 
             $pengiriman->update([
                 'status_kirim' => 'Dibatalkan',
                 'keterangan' => $request->alasan,
             ]);
 
-            \Log::info('Pengiriman cancelled successfully', ['pengiriman' => $pengiriman->toArray()]);
+            Log::info('Pengiriman cancelled successfully', ['pengiriman' => $pengiriman->toArray()]);
 
             // Update penjualan status
             if ($pengiriman->penjualan) {
@@ -217,17 +218,16 @@ class PengirimanController extends Controller
                     'status_order' => 'Dibatalkan',
                     'keterangan_status' => 'Pengiriman dibatalkan: ' . $request->alasan
                 ]);
-                \Log::info('Penjualan cancelled', ['penjualan' => $pengiriman->penjualan->toArray()]);
+                Log::info('Penjualan cancelled', ['penjualan' => $pengiriman->penjualan->toArray()]);
             }
 
             return redirect()->route('daftarpengiriman.index')->with('success', 'Pengiriman dibatalkan.');
         } catch (\Exception $e) {
-            \Log::error('Error cancelling pengiriman: ' . $e->getMessage(), [
+            Log::error('Error cancelling pengiriman: ' . $e->getMessage(), [
                 'id' => $id,
                 'trace' => $e->getTraceAsString()
             ]);
             return redirect()->route('daftarpengiriman.index')->with('error', 'Error: ' . $e->getMessage());
         }
-    }
     }
 }
