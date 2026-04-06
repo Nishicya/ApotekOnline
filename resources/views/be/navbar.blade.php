@@ -134,17 +134,14 @@
         
         <!-- az-header-profile -->
         <div class="dropdown az-profile-menu">
-            <a href="#" class="az-img-user" data-bs-toggle="dropdown" aria-expanded="false">
+            <a href="#" class="az-img-user dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button">
                 @if($user && $user->foto)
                 <img src="{{ asset('storage/'.$user->foto) }}" alt="Profile Photo">
                 @else
                 <img src="{{ asset('images/default-user.jpg') }}" alt="">
                 @endif
             </a>
-            <div class="dropdown-menu dropdown-menu-end">
-                <div class="az-dropdown-header d-sm-none">
-                    <a href="" class="az-header-arrow"><i class="icon ion-md-arrow-back"></i></a>
-                </div>
+            <div class="dropdown-menu dropdown-menu-end" style="min-width: 250px;">
                 <div class="az-header-profile">
                     <div class="az-img-user">
                         @if($user && $user->foto)
@@ -159,7 +156,7 @@
                 <a href="{{ route('be.profile') }}" class="dropdown-item"><i class="typcn typcn-user-outline"></i> My Profile</a>
                 <a href="{{ route('be.profile') }}" class="dropdown-item"><i class="typcn typcn-edit"></i> Edit Profile</a>
                 <hr class="dropdown-divider">
-                <form action="{{ route('logout') }}" method="POST">
+                <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
                     @csrf
                     <button type="submit" class="dropdown-item">
                         <i class="typcn typcn-power-outline"></i> Sign Out
